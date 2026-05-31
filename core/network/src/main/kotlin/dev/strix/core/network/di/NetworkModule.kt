@@ -1,0 +1,43 @@
+package dev.strix.core.network.di
+
+import dagger.Module
+import dagger.Provides
+import dagger.hilt.InstallIn
+import dagger.hilt.components.SingletonComponent
+import okhttp3.ConnectionPool
+import okhttp3.OkHttpClient
+import java.util.concurrent.TimeUnit
+import javax.inject.Singleton
+
+/**
+ * Provides a single shared [OkHttpClient].
+ *
+ * Performance notes:
+ * - One client app-wide so the connection pool, thread pool, and TLS session
+ *   cache are reused across every request (ADR: don't reinvent the HTTP stack).
+ * - A small, time-bounded [ConnectionPool] keeps idle sockets low on TV RAM
+ *   while still amortising TLS handshakes during zapping.
+ */
+@Module
+@InstallIn(SingletonComponent::class)
+object NetworkModule {
+    private const val MAX_IDLE_CONNECTIONS = 5
+    private const val KEEP_ALIVE_MINUTES = 5L
+    private const val CONNECT_TIMEOUT_SECONDS = 10L
+    private const val READ_TIMEOUT_SECONDS = 15L
+    private const val WRITE_TIMEOUT_SECONDS = 15L
+    private const val CALL_TIMEOUT_SECONDS = 30L
+
+    @Provides
+    @Singleton
+    fun provideOkHttpClient(): OkHttpClient =
+        OkHttpClient
+            .Builder()
+            .connectionPool(ConnectionPool(MAX_IDLE_CONNECTIONS, KEEP_ALIVE_MINUTES, TimeUnit.MINUTES))
+            .connectTimeout(CONNECT_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+            .readTimeout(READ_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+            .writeTimeout(WRITE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+            .callTimeout(CALL_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+            .retryOnConnectionFailure(true)
+            .build()
+}
