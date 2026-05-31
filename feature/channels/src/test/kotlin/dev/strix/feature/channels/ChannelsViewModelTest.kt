@@ -50,6 +50,8 @@ class ChannelsViewModelTest {
 
         override suspend fun previousChannel(id: ChannelId): Channel? = null
 
+        override suspend fun variants(id: ChannelId): List<Channel> = emptyList()
+
         override suspend fun refreshFrom(source: StreamSourceConfig): StrixResult<Int> = refreshResult
     }
 

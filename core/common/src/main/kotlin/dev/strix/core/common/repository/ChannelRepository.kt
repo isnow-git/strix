@@ -30,6 +30,9 @@ interface ChannelRepository {
     /** The previous channel in playlist order, or `null` at the start. */
     suspend fun previousChannel(id: ChannelId): Channel?
 
+    /** All quality variants of the channel [id] belongs to, best quality first. */
+    suspend fun variants(id: ChannelId): List<Channel>
+
     /**
      * Refreshes the local store from [source] (streaming parse + batched write).
      * Returns the number of channels imported on success.

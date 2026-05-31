@@ -1,0 +1,43 @@
+package dev.strix.core.common.model
+
+import com.google.common.truth.Truth.assertThat
+import org.junit.Test
+
+class ChannelQualityTest {
+    @Test
+    fun `variants of the same channel share a base key`() {
+        val fhd = ChannelQuality.parse("BeIN Sports 1 FHD")
+        val hd = ChannelQuality.parse("BeIN Sports 1 HD")
+        val sd = ChannelQuality.parse("BeIN Sports 1 SD")
+
+        assertThat(fhd.baseKey).isEqualTo("beinsports1")
+        assertThat(hd.baseKey).isEqualTo(fhd.baseKey)
+        assertThat(sd.baseKey).isEqualTo(fhd.baseKey)
+    }
+
+    @Test
+    fun `quality labels and ranks are parsed`() {
+        assertThat(ChannelQuality.parse("TF1 4K").qualityLabel).isEqualTo("4K")
+        assertThat(ChannelQuality.parse("TF1 FHD").qualityLabel).isEqualTo("FHD")
+        assertThat(ChannelQuality.parse("TF1 HD").qualityLabel).isEqualTo("HD")
+        assertThat(ChannelQuality.parse("TF1 SD").qualityLabel).isEqualTo("SD")
+
+        // 4K is a better (lower) rank than SD.
+        assertThat(ChannelQuality.parse("TF1 4K").qualityRank)
+            .isLessThan(ChannelQuality.parse("TF1 SD").qualityRank)
+    }
+
+    @Test
+    fun `unmarked channel has no label and the neutral rank`() {
+        val info = ChannelQuality.parse("Arte")
+        assertThat(info.qualityLabel).isNull()
+        assertThat(info.qualityRank).isEqualTo(ChannelQuality.RANK_NONE)
+        assertThat(info.baseKey).isEqualTo("arte")
+    }
+
+    @Test
+    fun `codec and bracket noise is stripped from the key`() {
+        assertThat(ChannelQuality.parse("Canal+ [HEVC] FHD").baseKey)
+            .isEqualTo(ChannelQuality.parse("Canal+ HD").baseKey)
+    }
+}

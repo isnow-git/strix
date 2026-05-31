@@ -17,10 +17,13 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 /**
- * Holds the currently playing channel (resolved from the nav arg, then updated by
- * D-pad zapping) and vends configured [ExoPlayer] instances. The player itself is
- * owned and released by the screen via the lifecycle (ADR-0004) — the ViewModel
- * never holds it, so a backgrounded or popped screen frees the decoder.
+ * Holds the current channel and its quality variants. Playback always targets
+ * [current] (the selected variant); D-pad zapping changes the logical channel
+ * (reloading its variants), and the user can cycle quality or the screen can
+ * [fallback] to a lower quality automatically on error.
+ *
+ * The [ExoPlayer] is owned and released by the screen via the lifecycle
+ * (ADR-0004); the ViewModel never holds it.
  */
 @HiltViewModel
 class PlayerViewModel
@@ -33,24 +36,61 @@ class PlayerViewModel
         private val initialId = ChannelId(savedStateHandle.get<String>(ARG_CHANNEL_ID).orEmpty())
 
         private val _channel = MutableStateFlow<Channel?>(null)
+
+        /** The logical channel (representative variant), updated by zapping. */
         val channel: StateFlow<Channel?> = _channel.asStateFlow()
 
+        private val _variants = MutableStateFlow<List<Channel>>(emptyList())
+
+        /** Quality variants of [channel], best quality first. */
+        val variants: StateFlow<List<Channel>> = _variants.asStateFlow()
+
+        private val _current = MutableStateFlow<Channel?>(null)
+
+        /** The variant actually playing (its [Channel.streamUrl] is loaded). */
+        val current: StateFlow<Channel?> = _current.asStateFlow()
+
         init {
-            viewModelScope.launch { _channel.value = channelRepository.channelById(initialId) }
+            viewModelScope.launch { selectChannel(channelRepository.channelById(initialId)) }
         }
 
         /** Zaps to the next ([direction] > 0) or previous channel in playlist order. */
         fun zap(direction: Int) {
-            val current = _channel.value ?: return
+            val cursor = _channel.value ?: return
             viewModelScope.launch {
                 val target =
                     if (direction > 0) {
-                        channelRepository.nextChannel(current.id)
+                        channelRepository.nextChannel(cursor.id)
                     } else {
-                        channelRepository.previousChannel(current.id)
+                        channelRepository.previousChannel(cursor.id)
                     }
-                if (target != null) _channel.value = target
+                if (target != null) selectChannel(target)
             }
+        }
+
+        /** Cycles quality: [step] +1 = lower, -1 = higher (variants are best-first). */
+        fun cycleQuality(step: Int) {
+            val list = _variants.value
+            val playing = _current.value ?: return
+            val index = list.indexOfFirst { it.id == playing.id }
+            list.getOrNull(index + step)?.let { _current.value = it }
+        }
+
+        /** Switches to the next lower-quality variant; returns false if none left. */
+        fun fallback(): Boolean {
+            val list = _variants.value
+            val playing = _current.value ?: return false
+            val next = list.getOrNull(list.indexOfFirst { it.id == playing.id } + 1) ?: return false
+            _current.value = next
+            return true
+        }
+
+        private suspend fun selectChannel(channel: Channel?) {
+            if (channel == null) return
+            _channel.value = channel
+            val list = channelRepository.variants(channel.id).ifEmpty { listOf(channel) }
+            _variants.value = list
+            _current.value = list.first()
         }
 
         @UnstableApi

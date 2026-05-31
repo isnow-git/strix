@@ -22,6 +22,9 @@ object DatabaseModule {
     ): StrixDatabase =
         Room
             .databaseBuilder(context, StrixDatabase::class.java, StrixDatabase.NAME)
+            // The catalogue is a cache fully rebuildable from the source, so a
+            // schema bump just wipes and re-imports rather than shipping migrations.
+            .fallbackToDestructiveMigration()
             .build()
 
     @Provides

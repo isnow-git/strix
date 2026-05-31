@@ -81,6 +81,8 @@ fun PlayerScreen(
     viewModel: PlayerViewModel = hiltViewModel(),
 ) {
     val channel by viewModel.channel.collectAsStateWithLifecycle()
+    val current by viewModel.current.collectAsStateWithLifecycle()
+    val variants by viewModel.variants.collectAsStateWithLifecycle()
     val player = remember { viewModel.createPlayer() }
     val context = LocalContext.current
     val bandwidthMeter = remember { DefaultBandwidthMeter.getSingletonInstance(context) }
@@ -97,7 +99,7 @@ fun PlayerScreen(
     val retryFocus = remember { FocusRequester() }
 
     fun play() {
-        val url = channel?.streamUrl ?: return
+        val url = current?.streamUrl ?: return
         error = null
         buffering = true
         player.setMediaItem(MediaItem.fromUri(url))
@@ -124,7 +126,9 @@ fun PlayerScreen(
 
                 override fun onPlayerError(e: PlaybackException) {
                     buffering = false
-                    error = playbackErrorMessage(e.errorCode)
+                    // Auto-fall back to a lower quality before surfacing the error;
+                    // the current-variant change re-triggers playback.
+                    if (!viewModel.fallback()) error = playbackErrorMessage(e.errorCode)
                 }
             }
         player.addListener(listener)
@@ -143,8 +147,9 @@ fun PlayerScreen(
         }
     }
 
-    // (Re)start playback whenever the channel changes (initial load or zap).
-    LaunchedEffect(channel) { play() }
+    // (Re)start playback whenever the selected variant changes (load, zap, or a
+    // quality switch/fallback).
+    LaunchedEffect(current) { play() }
 
     // Auto-hide the overlay a few seconds after the last interaction while playing.
     LaunchedEffect(poke, isPlaying, error) {
@@ -186,6 +191,8 @@ fun PlayerScreen(
                     when (event.key) {
                         Key.DirectionDown -> { viewModel.zap(1); reveal(); true }
                         Key.DirectionUp -> { viewModel.zap(-1); reveal(); true }
+                        Key.DirectionLeft -> { viewModel.cycleQuality(-1); reveal(); true }
+                        Key.DirectionRight -> { viewModel.cycleQuality(1); reveal(); true }
                         Key.DirectionCenter, Key.Enter -> {
                             if (player.isPlaying) player.pause() else player.play()
                             reveal()
@@ -254,14 +261,24 @@ fun PlayerScreen(
             )
         }
 
-        // Channel name, top-centre, with the overlay.
+        // Channel name + quality, top-centre, with the overlay.
         AnimatedVisibility(
             visible = controlsVisible && error == null,
             enter = fadeIn(tween(FADE_MS)),
             exit = fadeOut(tween(FADE_MS)),
             modifier = Modifier.align(Alignment.TopCenter).padding(28.dp),
         ) {
-            channel?.let { Text(text = it.name, color = Color.White, fontSize = 18.sp) }
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                (current ?: channel)?.let { Text(text = it.name, color = Color.White, fontSize = 18.sp) }
+                if (variants.size > 1) {
+                    // ◂ HD ▸ hints that left/right cycle the quality.
+                    Text(
+                        text = "◂ ${current?.qualityLabel ?: "auto"} ▸",
+                        color = MUTED,
+                        fontSize = 12.sp,
+                    )
+                }
+            }
         }
 
         // Centre pause icon: shown only while paused, fading out when playback
@@ -367,7 +384,7 @@ private fun ErrorPanel(
 
 private const val AUTO_HIDE_MS = 4_000L
 private const val BITRATE_POLL_MS = 1_000L
-private const val FADE_MS = 250
+private const val FADE_MS = 400
 private const val DOT_COUNT = 3
 private const val DOT_SIZE = 8
 private const val TOP_SCRIM_HEIGHT = 140
@@ -375,5 +392,6 @@ private const val SHADOW_RADIUS = 7
 private const val SHADOW_DY = 2
 
 private val LOADING_COLOR = Color.White
+private val MUTED = Color(0xFFB6B6C2)
 private val SCRIM = Color(0x66000000)
 private val ERROR_RED = Color(0xFFFF6B6B)

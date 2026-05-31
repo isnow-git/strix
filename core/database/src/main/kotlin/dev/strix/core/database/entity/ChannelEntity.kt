@@ -21,6 +21,8 @@ import androidx.room.PrimaryKey
         Index(value = ["channelId"], unique = true),
         Index(value = ["groupTitle"]),
         Index(value = ["sortIndex"]),
+        Index(value = ["baseKey"]),
+        Index(value = ["isPrimary"]),
     ],
 )
 data class ChannelEntity(
@@ -34,4 +36,12 @@ data class ChannelEntity(
     val groupTitle: String?,
     val number: Int?,
     val sortIndex: Int,
+    /** Quality-independent grouping key shared by a channel's variants. */
+    val baseKey: String,
+    /** Quality sort rank, lower = better. */
+    val qualityRank: Int,
+    /** Quality label of this variant (e.g. "FHD"), or null. */
+    val qualityLabel: String?,
+    /** True for the representative (best-quality) variant of each [baseKey]. */
+    val isPrimary: Boolean = false,
 )

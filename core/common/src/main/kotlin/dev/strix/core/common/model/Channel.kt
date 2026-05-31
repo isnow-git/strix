@@ -17,4 +17,6 @@ data class Channel(
     val logoUrl: String? = null,
     val group: String? = null,
     val number: Int? = null,
+    /** Quality label of this variant (e.g. "FHD"), or null if unmarked. */
+    val qualityLabel: String? = null,
 )

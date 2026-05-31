@@ -21,12 +21,21 @@ import kotlinx.coroutines.flow.Flow
  */
 @Dao
 interface ChannelDao {
-    @Query("SELECT * FROM channels ORDER BY sortIndex ASC")
+    /** One representative (best-quality) row per channel, in playlist order. */
+    @Query("SELECT * FROM channels WHERE isPrimary = 1 ORDER BY sortIndex ASC")
     fun pagingSource(): PagingSource<Int, ChannelEntity>
 
-    /** Channels of a single category, in playlist order. */
-    @Query("SELECT * FROM channels WHERE groupTitle = :group ORDER BY sortIndex ASC")
+    /** Representative rows of a single category, in playlist order. */
+    @Query("SELECT * FROM channels WHERE isPrimary = 1 AND groupTitle = :group ORDER BY sortIndex ASC")
     fun pagingSourceByGroup(group: String): PagingSource<Int, ChannelEntity>
+
+    /** All quality variants of the channel [channelId] belongs to, best first. */
+    @Query(
+        "SELECT * FROM channels WHERE baseKey = " +
+            "(SELECT baseKey FROM channels WHERE channelId = :channelId) " +
+            "ORDER BY qualityRank ASC, sortIndex ASC",
+    )
+    suspend fun variantsOf(channelId: String): List<ChannelEntity>
 
     /** Distinct, non-empty category names for the filter rail. */
     @Query(
@@ -43,7 +52,7 @@ interface ChannelDao {
         """
         SELECT c.* FROM channels AS c
         JOIN channels_fts AS f ON f.channelId = c.channelId
-        WHERE channels_fts MATCH :match
+        WHERE channels_fts MATCH :match AND c.isPrimary = 1
         ORDER BY c.sortIndex ASC
         """,
     )
@@ -66,17 +75,17 @@ interface ChannelDao {
     @Query("SELECT * FROM channels WHERE channelId = :channelId LIMIT 1")
     suspend fun findByChannelId(channelId: String): ChannelEntity?
 
-    /** The next channel in playlist order, for D-pad zapping. Null at the end. */
+    /** The next channel (representative) in playlist order, for D-pad zapping. */
     @Query(
-        "SELECT * FROM channels WHERE sortIndex > " +
+        "SELECT * FROM channels WHERE isPrimary = 1 AND sortIndex > " +
             "(SELECT sortIndex FROM channels WHERE channelId = :channelId) " +
             "ORDER BY sortIndex ASC LIMIT 1",
     )
     suspend fun findNext(channelId: String): ChannelEntity?
 
-    /** The previous channel in playlist order. Null at the start. */
+    /** The previous channel (representative) in playlist order. */
     @Query(
-        "SELECT * FROM channels WHERE sortIndex < " +
+        "SELECT * FROM channels WHERE isPrimary = 1 AND sortIndex < " +
             "(SELECT sortIndex FROM channels WHERE channelId = :channelId) " +
             "ORDER BY sortIndex DESC LIMIT 1",
     )
@@ -96,6 +105,30 @@ interface ChannelDao {
 
     @Query("DELETE FROM channels_fts")
     suspend fun clearFts()
+
+    @Query("UPDATE channels SET isPrimary = 0")
+    suspend fun clearPrimaryFlags()
+
+    /**
+     * Marks one representative per [ChannelEntity.baseKey] as primary: the
+     * earliest-listed variant (smallest `sortIndex`), so the grouped channel
+     * keeps its original list position, category and name. Default playback
+     * still uses the best quality (see `variantsOf`, ordered by rank).
+     */
+    @Query(
+        "UPDATE channels SET isPrimary = 1 WHERE rowid IN (" +
+            "SELECT rowid FROM channels AS c WHERE c.sortIndex = " +
+            "(SELECT MIN(sortIndex) FROM channels WHERE baseKey = c.baseKey) " +
+            "GROUP BY c.baseKey)",
+    )
+    suspend fun markPrimaries()
+
+    /** Recomputes the primary flag for every group. Call once after an import. */
+    @Transaction
+    suspend fun finalizeGroups() {
+        clearPrimaryFlags()
+        markPrimaries()
+    }
 
     /**
      * Appends one streamed batch of channels + their FTS rows in a single

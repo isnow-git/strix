@@ -68,6 +68,11 @@ class ChannelRepositoryImpl
                 dao.findPrevious(id.value)?.toDomain()
             }
 
+        override suspend fun variants(id: ChannelId): List<Channel> =
+            withContext(dispatchers.io) {
+                dao.variantsOf(id.value).map { it.toDomain() }
+            }
+
         override fun pagedChannels(
             query: String?,
             category: String?,
@@ -108,18 +113,21 @@ class ChannelRepositoryImpl
 
         private suspend fun fetchAndImportM3u(url: String): Int {
             val request = Request.Builder().url(url).build()
-            return okHttpClient.newCall(request).execute().use { response ->
-                if (!response.isSuccessful) throw IOException("Unexpected HTTP ${response.code}")
-                val body = response.body ?: throw IOException("Empty response body")
-                // Replace the catalogue: clear, then stream the new entries in batches.
-                dao.clearChannels()
-                dao.clearFts()
-                body.charStream().buffered().useLines { lines ->
-                    importer.import(parser.parse(lines)) { channels, fts ->
-                        dao.insertBatch(channels, fts)
+            val count =
+                okHttpClient.newCall(request).execute().use { response ->
+                    if (!response.isSuccessful) throw IOException("Unexpected HTTP ${response.code}")
+                    val body = response.body ?: throw IOException("Empty response body")
+                    // Replace the catalogue: clear, then stream the new entries in batches.
+                    dao.clearChannels()
+                    dao.clearFts()
+                    body.charStream().buffered().useLines { lines ->
+                        importer.import(parser.parse(lines)) { channels, fts ->
+                            dao.insertBatch(channels, fts)
+                        }
                     }
                 }
-            }
+            dao.finalizeGroups()
+            return count
         }
 
         private suspend fun importXtream(config: StreamSourceConfig.Xtream): StrixResult<Int> =
@@ -131,9 +139,12 @@ class ChannelRepositoryImpl
                     val channels = xtreamClient.liveChannels(config)
                     dao.clearChannels()
                     dao.clearFts()
-                    importer.import(channels.asSequence()) { c, fts ->
-                        dao.insertBatch(c, fts)
-                    }
+                    val count =
+                        importer.import(channels.asSequence()) { c, fts ->
+                            dao.insertBatch(c, fts)
+                        }
+                    dao.finalizeGroups()
+                    count
                 }.asSuccess()
             } catch (e: IOException) {
                 StrixError.Network(message = e.message, cause = e).asFailure()

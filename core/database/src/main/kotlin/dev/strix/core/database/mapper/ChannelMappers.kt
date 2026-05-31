@@ -2,6 +2,7 @@ package dev.strix.core.database.mapper
 
 import dev.strix.core.common.model.Channel
 import dev.strix.core.common.model.ChannelId
+import dev.strix.core.common.model.ChannelQuality
 import dev.strix.core.database.entity.ChannelEntity
 import dev.strix.core.database.entity.ChannelFtsEntity
 
@@ -18,15 +19,21 @@ fun ChannelEntity.toDomain(): Channel =
         logoUrl = logoUrl,
         group = groupTitle,
         number = number,
+        qualityLabel = qualityLabel,
     )
 
 /**
  * Maps a domain [Channel] to a row. [sortIndex] is supplied by the importer so
  * playlist order is preserved without a runtime sort. `rowid` is left at its
  * default so SQLite assigns it (or reuses it on conflict-replace by channelId).
+ *
+ * The grouping fields ([ChannelEntity.baseKey], rank, label) are derived here
+ * from the name; [ChannelEntity.isPrimary] is left false and set in a single
+ * pass after the import (see `ChannelDao.finalizeGroups`).
  */
-fun Channel.toEntity(sortIndex: Int): ChannelEntity =
-    ChannelEntity(
+fun Channel.toEntity(sortIndex: Int): ChannelEntity {
+    val quality = ChannelQuality.parse(name)
+    return ChannelEntity(
         channelId = id.value,
         name = name,
         streamUrl = streamUrl,
@@ -34,7 +41,11 @@ fun Channel.toEntity(sortIndex: Int): ChannelEntity =
         groupTitle = group,
         number = number,
         sortIndex = sortIndex,
+        baseKey = quality.baseKey,
+        qualityRank = quality.qualityRank,
+        qualityLabel = quality.qualityLabel,
     )
+}
 
 fun Channel.toFtsEntity(): ChannelFtsEntity =
     ChannelFtsEntity(
