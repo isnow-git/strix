@@ -68,15 +68,25 @@ class ChannelRepositoryImpl
                 dao.findPrevious(id.value)?.toDomain()
             }
 
-        override fun pagedChannels(query: String?): Flow<PagingData<Channel>> {
+        override fun pagedChannels(
+            query: String?,
+            category: String?,
+        ): Flow<PagingData<Channel>> {
             val match = query?.takeUnless { it.isBlank() }?.let(FtsQuery::prefixMatch)
+            val group = category?.takeUnless { it.isBlank() }
             return Pager(
                 config = PagingConfig(pageSize = PAGE_SIZE, enablePlaceholders = false),
                 pagingSourceFactory = {
-                    if (match == null) dao.pagingSource() else dao.searchPagingSource(match)
+                    when {
+                        match != null -> dao.searchPagingSource(match)
+                        group != null -> dao.pagingSourceByGroup(group)
+                        else -> dao.pagingSource()
+                    }
                 },
             ).flow.map { pagingData -> pagingData.map { it.toDomain() } }
         }
+
+        override fun categories(): Flow<List<String>> = dao.observeCategories()
 
         override suspend fun refreshFrom(source: StreamSourceConfig): StrixResult<Int> =
             withContext(dispatchers.io) {

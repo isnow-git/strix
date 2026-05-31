@@ -48,22 +48,39 @@ class ChannelsViewModel
         private val refreshing = MutableStateFlow(false)
         private val error = MutableStateFlow<String?>(null)
         private val focusedChannel = MutableStateFlow<Channel?>(null)
+        private val selectedCategory = MutableStateFlow<String?>(null)
 
         val uiState: StateFlow<ChannelsUiState> =
-            combine(query, refreshing, error) { query, refreshing, error ->
-                ChannelsUiState(query = query, isRefreshing = refreshing, errorMessage = error)
+            combine(query, refreshing, error, selectedCategory) { query, refreshing, error, category ->
+                ChannelsUiState(
+                    query = query,
+                    isRefreshing = refreshing,
+                    errorMessage = error,
+                    selectedCategory = category,
+                )
             }.stateIn(
                 scope = viewModelScope,
                 started = SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS),
                 initialValue = ChannelsUiState(),
             )
 
+        val categories: StateFlow<List<String>> =
+            pagingRepository
+                .categories()
+                .stateIn(
+                    scope = viewModelScope,
+                    started = SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS),
+                    initialValue = emptyList(),
+                )
+
         val pagedChannels: Flow<PagingData<Channel>> =
-            query
-                .debounce(SEARCH_DEBOUNCE_MS)
-                .distinctUntilChanged()
-                .flatMapLatest { query -> pagingRepository.pagedChannels(query.ifBlank { null }) }
-                .cachedIn(viewModelScope)
+            combine(
+                query.debounce(SEARCH_DEBOUNCE_MS).distinctUntilChanged(),
+                selectedCategory,
+            ) { query, category -> query to category }
+                .flatMapLatest { (query, category) ->
+                    pagingRepository.pagedChannels(query.ifBlank { null }, category)
+                }.cachedIn(viewModelScope)
 
         val playbackTarget: Flow<Channel> =
             focusedChannel
@@ -73,7 +90,14 @@ class ChannelsViewModel
 
         fun onIntent(intent: ChannelsIntent) {
             when (intent) {
-                is ChannelsIntent.SearchChanged -> query.value = intent.query
+                is ChannelsIntent.SearchChanged -> {
+                    query.value = intent.query
+                    if (intent.query.isNotBlank()) selectedCategory.value = null
+                }
+                is ChannelsIntent.CategorySelected -> {
+                    selectedCategory.value = intent.category
+                    query.value = ""
+                }
                 is ChannelsIntent.ChannelFocused -> focusedChannel.value = intent.channel
                 is ChannelsIntent.Refresh -> refresh(intent.source)
             }

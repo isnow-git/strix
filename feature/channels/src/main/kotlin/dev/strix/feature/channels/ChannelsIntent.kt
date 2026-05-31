@@ -10,6 +10,11 @@ sealed interface ChannelsIntent {
         val query: String,
     ) : ChannelsIntent
 
+    /** A category was selected in the filter rail (null = all categories). */
+    data class CategorySelected(
+        val category: String?,
+    ) : ChannelsIntent
+
     /** D-pad focus landed on a channel — drives debounced zapping/preview. */
     data class ChannelFocused(
         val channel: Channel,

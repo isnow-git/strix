@@ -24,6 +24,17 @@ interface ChannelDao {
     @Query("SELECT * FROM channels ORDER BY sortIndex ASC")
     fun pagingSource(): PagingSource<Int, ChannelEntity>
 
+    /** Channels of a single category, in playlist order. */
+    @Query("SELECT * FROM channels WHERE groupTitle = :group ORDER BY sortIndex ASC")
+    fun pagingSourceByGroup(group: String): PagingSource<Int, ChannelEntity>
+
+    /** Distinct, non-empty category names for the filter rail. */
+    @Query(
+        "SELECT DISTINCT groupTitle FROM channels " +
+            "WHERE groupTitle IS NOT NULL AND groupTitle != '' ORDER BY groupTitle ASC",
+    )
+    fun observeCategories(): Flow<List<String>>
+
     /**
      * Prefix search via the FTS index (ADR-0007). [match] must be an FTS MATCH
      * expression built by `FtsQuery.prefixMatch`.

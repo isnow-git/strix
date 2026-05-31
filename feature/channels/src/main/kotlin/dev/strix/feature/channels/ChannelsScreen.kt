@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -61,6 +62,7 @@ fun ChannelsScreen(
     viewModel: ChannelsViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val categories by viewModel.categories.collectAsStateWithLifecycle()
     val channels = viewModel.pagedChannels.collectAsLazyPagingItems()
     val imageLoader = rememberStrixImageLoader()
 
@@ -78,6 +80,13 @@ fun ChannelsScreen(
                 onQueryChange = { viewModel.onIntent(ChannelsIntent.SearchChanged(it)) },
                 onChangeSource = onChangeSource,
             )
+            if (categories.isNotEmpty()) {
+                CategoryRail(
+                    categories = categories,
+                    selected = state.selectedCategory,
+                    onSelect = { viewModel.onIntent(ChannelsIntent.CategorySelected(it)) },
+                )
+            }
             state.errorMessage?.let { message ->
                 Text(text = message, color = ERROR_RED, modifier = Modifier.padding(top = 12.dp))
             }
@@ -135,6 +144,58 @@ private fun Header(
         Button(onClick = onChangeSource) {
             Text(text = "Changer la source")
         }
+    }
+}
+
+@Composable
+private fun CategoryRail(
+    categories: List<String>,
+    selected: String?,
+    onSelect: (String?) -> Unit,
+) {
+    LazyRow(
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
+    ) {
+        item {
+            CategoryChip(label = "Toutes", selected = selected == null, onClick = { onSelect(null) })
+        }
+        items(categories) { category ->
+            CategoryChip(
+                label = category,
+                selected = selected == category,
+                onClick = { onSelect(category) },
+            )
+        }
+    }
+}
+
+@Composable
+private fun CategoryChip(
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+) {
+    val container = if (selected) PRIMARY else SURFACE
+    Surface(
+        onClick = onClick,
+        scale = ClickableSurfaceDefaults.scale(focusedScale = 1f),
+        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(20.dp)),
+        colors =
+            ClickableSurfaceDefaults.colors(
+                containerColor = container,
+                focusedContainerColor = container,
+                pressedContainerColor = container,
+            ),
+        modifier = Modifier.focusRing(cornerRadius = 20.dp),
+    ) {
+        Text(
+            text = label,
+            color = Color.White,
+            fontSize = 13.sp,
+            maxLines = 1,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+        )
     }
 }
 
@@ -254,6 +315,7 @@ private const val LOGO_SIZE = 52
 
 private val BACKGROUND = Color(0xFF0E0E14)
 private val SURFACE = Color(0xFF22222C)
+private val PRIMARY = Color(0xFF6C8CFF)
 private val LOGO_BG = Color(0xFF1A1A22)
 private val MUTED = Color(0xFFB6B6C2)
 private val ERROR_RED = Color(0xFFFF6B6B)

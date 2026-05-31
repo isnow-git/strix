@@ -31,7 +31,12 @@ class ChannelsViewModelTest {
 
     private val pagingRepository =
         object : ChannelPagingRepository {
-            override fun pagedChannels(query: String?): Flow<PagingData<Channel>> = flowOf(PagingData.empty())
+            override fun pagedChannels(
+                query: String?,
+                category: String?,
+            ): Flow<PagingData<Channel>> = flowOf(PagingData.empty())
+
+            override fun categories(): Flow<List<String>> = flowOf(emptyList())
         }
 
     private class FakeChannelRepository(
@@ -40,6 +45,10 @@ class ChannelsViewModelTest {
         override fun observeChannels(query: String?): Flow<List<Channel>> = flowOf(emptyList())
 
         override suspend fun channelById(id: ChannelId): Channel? = null
+
+        override suspend fun nextChannel(id: ChannelId): Channel? = null
+
+        override suspend fun previousChannel(id: ChannelId): Channel? = null
 
         override suspend fun refreshFrom(source: StreamSourceConfig): StrixResult<Int> = refreshResult
     }

@@ -12,4 +12,5 @@ data class ChannelsUiState(
     val query: String = "",
     val isRefreshing: Boolean = false,
     val errorMessage: String? = null,
+    val selectedCategory: String? = null,
 )

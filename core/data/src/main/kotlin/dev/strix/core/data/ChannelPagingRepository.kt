@@ -11,8 +11,15 @@ import kotlinx.coroutines.flow.Flow
  */
 interface ChannelPagingRepository {
     /**
-     * A paged stream of channels, optionally filtered by a search [query]
-     * (prefix match via FTS). The UI only ever holds a window of rows.
+     * A paged stream of channels. A non-blank [query] runs an FTS prefix search
+     * across all channels; otherwise a non-null [category] filters by group. The
+     * UI only ever holds a window of rows.
      */
-    fun pagedChannels(query: String? = null): Flow<PagingData<Channel>>
+    fun pagedChannels(
+        query: String? = null,
+        category: String? = null,
+    ): Flow<PagingData<Channel>>
+
+    /** Distinct category names for the filter rail. */
+    fun categories(): Flow<List<String>>
 }
