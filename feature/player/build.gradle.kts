@@ -17,6 +17,7 @@ dependencies {
     implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.navigation.compose)
     implementation(libs.hilt.navigation.compose)
+    implementation(libs.media3.exoplayer)
     implementation(libs.media3.ui)
     implementation(libs.kotlinx.coroutines.android)
 
