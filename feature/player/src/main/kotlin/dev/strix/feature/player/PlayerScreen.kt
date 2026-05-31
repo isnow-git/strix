@@ -1,6 +1,8 @@
 package dev.strix.feature.player
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
@@ -152,9 +154,12 @@ fun PlayerScreen(
         }
     }
 
-    // Keep D-pad focus on the right target.
+    // Keep D-pad focus on the right target. Guarded: the target may still be
+    // animating in (AnimatedVisibility) and not yet attached.
     LaunchedEffect(error) {
-        if (error != null) retryFocus.requestFocus() else rootFocus.requestFocus()
+        runCatching {
+            if (error != null) retryFocus.requestFocus() else rootFocus.requestFocus()
+        }
     }
 
     // Refresh the bitrate every second while the overlay is on screen. Prefer the
@@ -208,11 +213,15 @@ fun PlayerScreen(
 
         // Top scrim: a black→transparent gradient so the top info stays legible
         // over bright video. Shown whenever there's top info (overlay or loading).
-        if (error == null && (controlsVisible || buffering)) {
+        AnimatedVisibility(
+            visible = error == null && (controlsVisible || buffering),
+            enter = fadeIn(tween(FADE_MS)),
+            exit = fadeOut(tween(FADE_MS)),
+            modifier = Modifier.align(Alignment.TopCenter),
+        ) {
             Box(
                 modifier =
                     Modifier
-                        .align(Alignment.TopCenter)
                         .fillMaxWidth()
                         .height(TOP_SCRIM_HEIGHT.dp)
                         .background(
@@ -222,13 +231,20 @@ fun PlayerScreen(
         }
 
         // Loading: three animated dots, top-left.
-        if (buffering && error == null) {
-            LoadingDots(modifier = Modifier.align(Alignment.TopStart).padding(28.dp))
+        AnimatedVisibility(
+            visible = buffering && error == null,
+            enter = fadeIn(tween(FADE_MS)),
+            exit = fadeOut(tween(FADE_MS)),
+            modifier = Modifier.align(Alignment.TopStart).padding(28.dp),
+        ) {
+            LoadingDots()
         }
 
         // Network bitrate, top-right, refreshed while the overlay is visible.
         AnimatedVisibility(
             visible = controlsVisible && error == null,
+            enter = fadeIn(tween(FADE_MS)),
+            exit = fadeOut(tween(FADE_MS)),
             modifier = Modifier.align(Alignment.TopEnd).padding(28.dp),
         ) {
             Text(
@@ -241,6 +257,8 @@ fun PlayerScreen(
         // Channel name, top-centre, with the overlay.
         AnimatedVisibility(
             visible = controlsVisible && error == null,
+            enter = fadeIn(tween(FADE_MS)),
+            exit = fadeOut(tween(FADE_MS)),
             modifier = Modifier.align(Alignment.TopCenter).padding(28.dp),
         ) {
             channel?.let { Text(text = it.name, color = Color.White, fontSize = 18.sp) }
@@ -249,18 +267,24 @@ fun PlayerScreen(
         // Centre play/pause button with the overlay (and always while paused).
         AnimatedVisibility(
             visible = error == null && (controlsVisible || !isPlaying),
+            enter = fadeIn(tween(FADE_MS)),
+            exit = fadeOut(tween(FADE_MS)),
             modifier = Modifier.align(Alignment.Center),
         ) {
             PlayPauseButton(playing = isPlaying)
         }
 
-        if (error != null) {
+        AnimatedVisibility(
+            visible = error != null,
+            enter = fadeIn(tween(FADE_MS)),
+            exit = fadeOut(tween(FADE_MS)),
+            modifier = Modifier.align(Alignment.Center).padding(24.dp),
+        ) {
             ErrorPanel(
                 channelName = channel?.name,
                 message = error.orEmpty(),
                 retryFocus = retryFocus,
                 onRetry = ::play,
-                modifier = Modifier.align(Alignment.Center).padding(24.dp),
             )
         }
     }
@@ -308,13 +332,13 @@ private fun PlayPauseButton(playing: Boolean) {
                         SHADOW_RADIUS.dp.toPx(),
                         0f,
                         SHADOW_DY.dp.toPx(),
-                        android.graphics.Color.argb(170, 0, 0, 0),
+                        android.graphics.Color.argb(200, 0, 0, 0),
                     )
                 }
         val canvas = drawContext.canvas.nativeCanvas
         if (playing) {
             val barWidth = w * 0.26f
-            val radius = barWidth * 0.5f
+            val radius = barWidth * 0.25f
             canvas.drawRoundRect(w * 0.16f, h * 0.06f, w * 0.16f + barWidth, h * 0.94f, radius, radius, paint)
             canvas.drawRoundRect(w * 0.58f, h * 0.06f, w * 0.58f + barWidth, h * 0.94f, radius, radius, paint)
         } else {
@@ -355,6 +379,7 @@ private fun ErrorPanel(
 
 private const val AUTO_HIDE_MS = 4_000L
 private const val BITRATE_POLL_MS = 1_000L
+private const val FADE_MS = 250
 private const val DOT_COUNT = 3
 private const val DOT_SIZE = 8
 private const val TOP_SCRIM_HEIGHT = 140
