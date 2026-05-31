@@ -11,8 +11,7 @@ android {
 dependencies {
     implementation(projects.core.common)
     implementation(projects.core.ui)
-    implementation(projects.core.database)
-    implementation(projects.core.network)
+    implementation(projects.core.data)
 
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.lifecycle.runtime.compose)
