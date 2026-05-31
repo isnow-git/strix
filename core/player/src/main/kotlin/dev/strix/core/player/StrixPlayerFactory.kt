@@ -12,6 +12,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import dev.strix.core.player.config.AbrConfig
 import dev.strix.core.player.config.TvBufferConfig
 import okhttp3.OkHttpClient
+import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 
 /**
@@ -65,7 +66,19 @@ class DefaultStrixPlayerFactory
                     ),
                 )
 
-            val dataSourceFactory = OkHttpDataSource.Factory(okHttpClient)
+            // A live stream is one open-ended HTTP response. The shared client's
+            // short call timeout (sized for API requests) would force-close it
+            // mid-playback, causing a rebuffer and a time jump roughly every
+            // timeout. Derive a streaming client with no call timeout (so the
+            // response can run forever) but a bounded read timeout (so a truly
+            // stalled feed still fails). The connection pool/dispatcher are reused.
+            val streamingClient =
+                okHttpClient
+                    .newBuilder()
+                    .callTimeout(0, TimeUnit.MILLISECONDS)
+                    .readTimeout(STREAM_READ_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+                    .build()
+            val dataSourceFactory = OkHttpDataSource.Factory(streamingClient)
 
             return ExoPlayer
                 .Builder(context)
@@ -73,5 +86,10 @@ class DefaultStrixPlayerFactory
                 .setTrackSelector(trackSelector)
                 .setMediaSourceFactory(DefaultMediaSourceFactory(dataSourceFactory))
                 .build()
+        }
+
+        private companion object {
+            // No call timeout for streaming; a stalled feed still fails on read.
+            const val STREAM_READ_TIMEOUT_SECONDS = 30L
         }
     }
