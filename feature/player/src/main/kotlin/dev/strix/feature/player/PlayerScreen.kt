@@ -1,5 +1,6 @@
 package dev.strix.feature.player
 
+import android.os.SystemClock
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -94,6 +95,9 @@ fun PlayerScreen(
     var controlsVisible by remember { mutableStateOf(true) }
     var poke by remember { mutableIntStateOf(0) }
     var bitrateBps by remember { mutableLongStateOf(0L) }
+    var behindLiveMs by remember { mutableLongStateOf(0L) }
+    var showResync by remember { mutableStateOf(false) }
+    val stall = remember { StallTracker() }
 
     val rootFocus = remember { FocusRequester() }
     val retryFocus = remember { FocusRequester() }
@@ -102,6 +106,9 @@ fun PlayerScreen(
         val url = current?.streamUrl ?: return
         error = null
         buffering = true
+        behindLiveMs = 0L
+        showResync = false
+        stall.reset()
         player.setMediaItem(MediaItem.fromUri(url))
         player.prepare()
         player.playWhenReady = true
@@ -117,7 +124,21 @@ fun PlayerScreen(
             object : Player.Listener {
                 override fun onPlaybackStateChanged(state: Int) {
                     buffering = state == Player.STATE_BUFFERING
-                    if (state == Player.STATE_READY) error = null
+                    when (state) {
+                        Player.STATE_BUFFERING ->
+                            if (stall.playing) stall.startedAt = SystemClock.elapsedRealtime()
+                        Player.STATE_READY -> {
+                            error = null
+                            if (stall.startedAt > 0L) {
+                                // Each rebuffer is roughly how far we fell behind live.
+                                behindLiveMs += SystemClock.elapsedRealtime() - stall.startedAt
+                                stall.startedAt = 0L
+                            }
+                            stall.playing = true
+                            if (behindLiveMs >= RESYNC_THRESHOLD_MS) showResync = true
+                        }
+                        else -> Unit
+                    }
                 }
 
                 override fun onIsPlayingChanged(playing: Boolean) {
@@ -188,6 +209,15 @@ fun PlayerScreen(
                 .focusable()
                 .onKeyEvent { event ->
                     if (event.type != KeyEventType.KeyDown) return@onKeyEvent false
+                    // When the resync prompt is up, OK jumps back to live; any other
+                    // key just dismisses it and runs as usual.
+                    if (showResync) {
+                        if (event.key == Key.DirectionCenter || event.key == Key.Enter) {
+                            play()
+                            return@onKeyEvent true
+                        }
+                        showResync = false
+                    }
                     when (event.key) {
                         Key.DirectionDown -> { viewModel.zap(1); reveal(); true }
                         Key.DirectionUp -> { viewModel.zap(-1); reveal(); true }
@@ -305,6 +335,42 @@ fun PlayerScreen(
                 onRetry = ::play,
             )
         }
+
+        // Resync prompt: appears once playback has drifted noticeably behind live.
+        AnimatedVisibility(
+            visible = showResync && error == null,
+            enter = fadeIn(tween(FADE_MS)),
+            exit = fadeOut(tween(FADE_MS)),
+            modifier = Modifier.align(Alignment.BottomCenter).padding(36.dp),
+        ) {
+            ResyncPrompt(behindSeconds = (behindLiveMs / 1000L).toInt())
+        }
+    }
+}
+
+/** Tracks rebuffer timing to estimate how far playback has drifted behind live. */
+private class StallTracker {
+    var playing: Boolean = false
+    var startedAt: Long = 0L
+
+    fun reset() {
+        playing = false
+        startedAt = 0L
+    }
+}
+
+@Composable
+private fun ResyncPrompt(behindSeconds: Int) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        modifier =
+            Modifier
+                .background(SCRIM, RoundedCornerShape(24.dp))
+                .padding(horizontal = 20.dp, vertical = 12.dp),
+    ) {
+        Text(text = "≈ ${behindSeconds}s de retard", color = MUTED, fontSize = 13.sp)
+        Text(text = "OK · Revenir au direct", color = Color.White, fontSize = 14.sp)
     }
 }
 
@@ -384,6 +450,7 @@ private fun ErrorPanel(
 
 private const val AUTO_HIDE_MS = 4_000L
 private const val BITRATE_POLL_MS = 1_000L
+private const val RESYNC_THRESHOLD_MS = 25_000L
 private const val FADE_MS = 400
 private const val DOT_COUNT = 3
 private const val DOT_SIZE = 8
