@@ -10,4 +10,7 @@ android {
 dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.coil.compose)
+
+    testImplementation(libs.junit)
+    testImplementation(libs.truth)
 }
