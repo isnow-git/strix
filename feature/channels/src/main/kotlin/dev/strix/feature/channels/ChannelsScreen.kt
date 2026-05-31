@@ -1,7 +1,9 @@
 package dev.strix.feature.channels
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -14,6 +16,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
@@ -25,6 +28,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.paging.compose.collectAsLazyPagingItems
 import androidx.paging.compose.itemContentType
 import androidx.paging.compose.itemKey
+import androidx.tv.material3.Button
 import androidx.tv.material3.Surface
 import androidx.tv.material3.Text
 import coil.compose.AsyncImage
@@ -41,6 +45,7 @@ import dev.strix.core.ui.theme.StrixTheme
 @Composable
 fun ChannelsScreen(
     onPlay: (Channel) -> Unit,
+    onChangeSource: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: ChannelsViewModel = hiltViewModel(),
 ) {
@@ -49,10 +54,19 @@ fun ChannelsScreen(
 
     StrixTheme {
         Column(modifier = modifier.fillMaxSize().padding(24.dp)) {
-            SearchField(
-                query = state.query,
-                onQueryChange = { viewModel.onIntent(ChannelsIntent.SearchChanged(it)) },
-            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                SearchField(
+                    query = state.query,
+                    onQueryChange = { viewModel.onIntent(ChannelsIntent.SearchChanged(it)) },
+                    modifier = Modifier.weight(1f),
+                )
+                Button(onClick = onChangeSource) {
+                    Text(text = "Changer la source")
+                }
+            }
             state.errorMessage?.let { message ->
                 Text(text = message, modifier = Modifier.padding(top = 8.dp))
             }
@@ -81,6 +95,7 @@ fun ChannelsScreen(
 private fun SearchField(
     query: String,
     onQueryChange: (String) -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     BasicTextField(
         value = query,
@@ -91,8 +106,7 @@ private fun SearchField(
             androidx.compose.ui.graphics
                 .SolidColor(Color.White),
         modifier =
-            Modifier
-                .fillMaxWidth()
+            modifier
                 .focusRing()
                 .background(Color(0xFF22222C), RoundedCornerShape(8.dp))
                 .padding(horizontal = 16.dp, vertical = 12.dp),

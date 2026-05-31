@@ -35,6 +35,7 @@ fun StrixNavHost() {
                     onDone = {
                         navController.navigate(Routes.CHANNELS) {
                             popUpTo(Routes.ONBOARDING) { inclusive = true }
+                            launchSingleTop = true
                         }
                     },
                 )
@@ -42,6 +43,7 @@ fun StrixNavHost() {
             composable(Routes.CHANNELS) {
                 ChannelsScreen(
                     onPlay = { channel -> navController.navigate(Routes.player(channel.id.value)) },
+                    onChangeSource = { navController.navigate(Routes.ONBOARDING) },
                 )
             }
             composable(
