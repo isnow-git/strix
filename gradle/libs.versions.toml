@@ -1,6 +1,6 @@
 [versions]
 # Build tooling
-agp = "8.10.1"
+agp = "9.2.1"
 kotlin = "2.1.0"
 ksp = "2.1.0-1.0.29"
 
