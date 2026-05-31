@@ -16,7 +16,7 @@ tvMaterial = "1.0.0"
 navigationCompose = "2.8.5"
 
 # DI
-hilt = "2.56"
+hilt = "2.59.2"
 hiltNavigationCompose = "1.2.0"
 
 # Async
