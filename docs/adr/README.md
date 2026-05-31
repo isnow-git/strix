@@ -17,5 +17,6 @@ editing it.
 | [0008](0008-embedded-http-server.md) | NanoHTTPD for the embedded server | accepted |
 | [0009](0009-dependency-injection.md) | Hilt for dependency injection | accepted |
 | [0010](0010-build-logic-convention-plugins.md) | build-logic convention plugins | accepted |
+| [0011](0011-core-data-module.md) | A dedicated :core:data module | accepted |
 
 To add one, copy [`template.md`](template.md).

@@ -41,6 +41,17 @@ interface ChannelDao {
     @Query("SELECT * FROM channels ORDER BY sortIndex ASC")
     fun observeAll(): Flow<List<ChannelEntity>>
 
+    /** Observes the FTS prefix-search results. [match] is an `FtsQuery.prefixMatch` expression. */
+    @Query(
+        """
+        SELECT c.* FROM channels AS c
+        JOIN channels_fts AS f ON f.channelId = c.channelId
+        WHERE channels_fts MATCH :match
+        ORDER BY c.sortIndex ASC
+        """,
+    )
+    fun searchObserve(match: String): Flow<List<ChannelEntity>>
+
     @Query("SELECT * FROM channels WHERE channelId = :channelId LIMIT 1")
     suspend fun findByChannelId(channelId: String): ChannelEntity?
 
