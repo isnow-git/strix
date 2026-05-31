@@ -18,6 +18,7 @@ import dev.strix.core.database.mapper.toDomain
 import dev.strix.core.database.search.FtsQuery
 import dev.strix.core.network.playlist.M3uParser
 import dev.strix.core.network.resilience.retryWithBackoff
+import dev.strix.core.network.xtream.XtreamClient
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
@@ -31,13 +32,16 @@ import javax.inject.Inject
  *
  * Reads come straight from Room (paging + flows); a refresh streams the playlist
  * over OkHttp, parses it line by line, and writes it to Room in batches
- * ([PlaylistImporter]) so a large playlist is never held whole in RAM.
+ * ([PlaylistImporter]) so a large playlist is never held whole in RAM. Both the
+ * M3U and Xtream paths fetch through [ChallengeAwareFetcher] so providers behind
+ * a JS anti-leech wall are handled transparently.
  */
 class ChannelRepositoryImpl
     @Inject
     constructor(
         private val dao: ChannelDao,
         private val okHttpClient: OkHttpClient,
+        private val xtreamClient: XtreamClient,
         private val dispatchers: DispatcherProvider,
     ) : ChannelRepository,
         ChannelPagingRepository {
@@ -69,40 +73,52 @@ class ChannelRepositoryImpl
             withContext(dispatchers.io) {
                 when (source) {
                     is StreamSourceConfig.M3u -> importM3u(source.url)
-                    is StreamSourceConfig.Xtream ->
-                        StrixError.Unknown("Xtream import is not implemented yet").asFailure()
+                    is StreamSourceConfig.Xtream -> importXtream(source)
                 }
             }
 
         private suspend fun importM3u(url: String): StrixResult<Int> =
             try {
-                val count =
-                    retryWithBackoff(
-                        maxAttempts = MAX_FETCH_ATTEMPTS,
-                        shouldRetry = { it is IOException },
-                    ) {
-                        fetchAndImport(url)
-                    }
-                count.asSuccess()
+                retryWithBackoff(
+                    maxAttempts = MAX_FETCH_ATTEMPTS,
+                    shouldRetry = { it is IOException },
+                ) { fetchAndImportM3u(url) }.asSuccess()
             } catch (e: IOException) {
                 StrixError.Network(message = e.message, cause = e).asFailure()
             }
 
-        private suspend fun fetchAndImport(url: String): Int {
+        private suspend fun fetchAndImportM3u(url: String): Int {
             val request = Request.Builder().url(url).build()
-            okHttpClient.newCall(request).execute().use { response ->
+            return okHttpClient.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) throw IOException("Unexpected HTTP ${response.code}")
                 val body = response.body ?: throw IOException("Empty response body")
                 // Replace the catalogue: clear, then stream the new entries in batches.
                 dao.clearChannels()
                 dao.clearFts()
-                return body.charStream().buffered().useLines { lines ->
+                body.charStream().buffered().useLines { lines ->
                     importer.import(parser.parse(lines)) { channels, fts ->
                         dao.insertBatch(channels, fts)
                     }
                 }
             }
         }
+
+        private suspend fun importXtream(config: StreamSourceConfig.Xtream): StrixResult<Int> =
+            try {
+                retryWithBackoff(
+                    maxAttempts = MAX_FETCH_ATTEMPTS,
+                    shouldRetry = { it is IOException },
+                ) {
+                    val channels = xtreamClient.liveChannels(config)
+                    dao.clearChannels()
+                    dao.clearFts()
+                    importer.import(channels.asSequence()) { c, fts ->
+                        dao.insertBatch(c, fts)
+                    }
+                }.asSuccess()
+            } catch (e: IOException) {
+                StrixError.Network(message = e.message, cause = e).asFailure()
+            }
 
         private companion object {
             const val PAGE_SIZE = 40
