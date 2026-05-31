@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Compose draws the real UI; this theme only provides a dark window background
+         so there is no white flash before the first frame. -->
+    <style name="Theme.Strix" parent="@android:style/Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/strix_background</item>
+        <item name="android:statusBarColor">@color/strix_background</item>
+        <item name="android:navigationBarColor">@color/strix_background</item>
+    </style>
+</resources>

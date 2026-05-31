@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  IPTV providers and embedded onboarding both operate over plain HTTP on the
+  local network. We keep cleartext OFF by default and only allow it where the
+  user explicitly provides an http:// source. Tighten per-domain once providers
+  are known; for now cleartext is permitted globally with a clear rationale.
+  See docs/adr/0005.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>

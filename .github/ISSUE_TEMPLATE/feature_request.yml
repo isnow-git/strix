@@ -1,0 +1,40 @@
+name: Feature request
+description: Propose a feature or improvement
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem / motivation
+      description: What user problem does this solve? Why now?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+    validations:
+      required: true
+  - type: dropdown
+    id: module
+    attributes:
+      label: Affected module
+      options:
+        - app
+        - core:common
+        - core:ui
+        - core:database
+        - core:network
+        - core:player
+        - feature:channels
+        - feature:player
+        - feature:onboarding
+        - feature:epg
+        - build/CI
+    validations:
+      required: false
+  - type: textarea
+    id: perf
+    attributes:
+      label: Performance / memory impact
+      description: Any allocation, memory, or network implications on low-RAM TVs?

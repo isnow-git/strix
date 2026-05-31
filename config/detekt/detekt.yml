@@ -1,0 +1,23 @@
+# Strix detekt overrides. buildUponDefaultConfig = true, so this only tweaks
+# rules on top of detekt's defaults.
+
+complexity:
+  LongMethod:
+    threshold: 80
+  TooManyFunctions:
+    active: false
+
+style:
+  MagicNumber:
+    # Player/network tuning constants are inherently "magic"; keep them readable
+    # in code rather than fighting the rule. Revisit per-module if it gets noisy.
+    active: false
+  ReturnCount:
+    max: 4
+  MaxLineLength:
+    maxLineLength: 120
+
+naming:
+  FunctionNaming:
+    # Composable functions are PascalCase by convention.
+    ignoreAnnotated: ['Composable']

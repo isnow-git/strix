@@ -1,0 +1,18 @@
+# Normalise line endings. Source stays LF in the repo; Windows checkouts may use
+# CRLF locally via autocrlf, but committed blobs are LF so Linux CI runs gradlew.
+* text=auto eol=lf
+
+# Windows batch files require CRLF.
+*.bat text eol=crlf
+
+# The Gradle wrapper script must be LF (executed by /bin/sh in CI).
+gradlew text eol=lf
+
+# Binary assets — never normalise.
+*.jar binary
+*.png binary
+*.jpg binary
+*.webp binary
+*.apk binary
+*.keystore binary
+*.jks binary
