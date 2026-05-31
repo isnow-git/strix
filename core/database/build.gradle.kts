@@ -7,6 +7,12 @@ android {
     namespace = "dev.strix.core.database"
 }
 
+ksp {
+    // Export Room schemas so migrations can be written and verified from v1.
+    arg("room.schemaLocation", "$projectDir/schemas")
+    arg("room.generateKotlin", "true")
+}
+
 dependencies {
     implementation(projects.core.common)
 
