@@ -47,7 +47,7 @@ androidxJunit = "1.2.1"
 espresso = "3.6.1"
 
 # Static analysis
-detekt = "1.23.7"
+detekt = "1.23.8"
 ktlintGradle = "12.1.1"
 
 [libraries]
