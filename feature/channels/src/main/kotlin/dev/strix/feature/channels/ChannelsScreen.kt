@@ -31,7 +31,6 @@ import coil.compose.AsyncImage
 import dev.strix.core.common.model.Channel
 import dev.strix.core.ui.focus.focusRing
 import dev.strix.core.ui.theme.StrixTheme
-import kotlinx.coroutines.flow.collectLatest
 
 /**
  * Channels grid with debounced FTS search. Focused-channel changes are forwarded
@@ -47,10 +46,6 @@ fun ChannelsScreen(
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val channels = viewModel.pagedChannels.collectAsLazyPagingItems()
-
-    androidx.compose.runtime.LaunchedEffect(Unit) {
-        viewModel.playbackTarget.collectLatest(onPlay)
-    }
 
     StrixTheme {
         Column(modifier = modifier.fillMaxSize().padding(24.dp)) {
