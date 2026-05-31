@@ -33,7 +33,7 @@ jobs:
         run: sdkmanager "platforms;android-36" "build-tools;35.0.0"
 
       - name: Set up Gradle (with cache)
-        uses: gradle/actions/setup-gradle@v4
+        uses: gradle/actions/setup-gradle@v6
 
       - name: Make gradlew executable
         run: chmod +x ./gradlew
