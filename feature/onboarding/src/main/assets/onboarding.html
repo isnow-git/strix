@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Connect Strix</title>
+  <style>
+    :root { color-scheme: dark; }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center;
+      background: #0b0b0f; color: #ececf1;
+      font: 16px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      padding: 24px;
+    }
+    .card { width: 100%; max-width: 420px; background: #15151c; border: 1px solid #22222c; border-radius: 16px; padding: 24px; }
+    h1 { margin: 0 0 4px; font-size: 22px; }
+    p.sub { margin: 0 0 20px; color: #b6b6c2; font-size: 14px; }
+    .tabs { display: flex; gap: 8px; margin-bottom: 16px; }
+    .tab { flex: 1; padding: 10px; text-align: center; border-radius: 10px; background: #22222c; color: #b6b6c2; cursor: pointer; user-select: none; }
+    .tab.active { background: #6c8cff; color: #0b0b0f; font-weight: 600; }
+    label { display: block; font-size: 13px; color: #b6b6c2; margin: 14px 0 6px; }
+    input {
+      width: 100%; padding: 12px 14px; border-radius: 10px; border: 1px solid #3a3a47;
+      background: #0b0b0f; color: #ececf1; font-size: 16px;
+    }
+    input:focus { outline: 2px solid #6c8cff; border-color: transparent; }
+    button {
+      width: 100%; margin-top: 22px; padding: 14px; border: 0; border-radius: 12px;
+      background: #6c8cff; color: #0b0b0f; font-size: 16px; font-weight: 700; cursor: pointer;
+    }
+    button:disabled { opacity: .6; cursor: default; }
+    .hidden { display: none; }
+    .status { margin-top: 16px; text-align: center; font-size: 14px; min-height: 20px; }
+    .status.ok { color: #5ad17e; }
+    .status.err { color: #ff7a7a; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Connect Strix</h1>
+    <p class="sub">Enter your IPTV details. They go straight to your TV on your local network.</p>
+
+    <div class="tabs">
+      <div class="tab active" data-mode="m3u" id="tab-m3u">M3U playlist</div>
+      <div class="tab" data-mode="xtream" id="tab-xtream">Xtream Codes</div>
+    </div>
+
+    <form id="form">
+      <input type="hidden" name="type" id="type" value="m3u" />
+
+      <div id="fields-m3u">
+        <label for="url">Playlist URL</label>
+        <input type="url" name="url" id="url" placeholder="http://provider/playlist.m3u" inputmode="url" />
+      </div>
+
+      <div id="fields-xtream" class="hidden">
+        <label for="host">Host</label>
+        <input type="text" name="host" id="host" placeholder="http://provider:port" />
+        <label for="username">Username</label>
+        <input type="text" name="username" id="username" autocomplete="username" />
+        <label for="password">Password</label>
+        <input type="password" name="password" id="password" autocomplete="current-password" />
+      </div>
+
+      <button type="submit" id="submit">Connect</button>
+      <div class="status" id="status"></div>
+    </form>
+  </div>
+
+  <script>
+    var token = new URLSearchParams(location.search).get('t') || '';
+    var mode = 'm3u';
+
+    function setMode(next) {
+      mode = next;
+      document.getElementById('type').value = next;
+      document.getElementById('tab-m3u').classList.toggle('active', next === 'm3u');
+      document.getElementById('tab-xtream').classList.toggle('active', next === 'xtream');
+      document.getElementById('fields-m3u').classList.toggle('hidden', next !== 'm3u');
+      document.getElementById('fields-xtream').classList.toggle('hidden', next !== 'xtream');
+    }
+    document.getElementById('tab-m3u').onclick = function () { setMode('m3u'); };
+    document.getElementById('tab-xtream').onclick = function () { setMode('xtream'); };
+
+    document.getElementById('form').addEventListener('submit', function (e) {
+      e.preventDefault();
+      var status = document.getElementById('status');
+      var btn = document.getElementById('submit');
+      status.className = 'status';
+      status.textContent = 'Connecting…';
+      btn.disabled = true;
+
+      var data = new URLSearchParams();
+      data.set('type', mode);
+      data.set('t', token);
+      if (mode === 'm3u') {
+        data.set('url', document.getElementById('url').value.trim());
+      } else {
+        data.set('host', document.getElementById('host').value.trim());
+        data.set('username', document.getElementById('username').value.trim());
+        data.set('password', document.getElementById('password').value);
+      }
+
+      fetch('/', { method: 'POST', body: data })
+        .then(function (r) { return r.text().then(function (t) { return { ok: r.ok, text: t }; }); })
+        .then(function (res) {
+          if (res.ok) {
+            status.className = 'status ok';
+            status.textContent = res.text;
+          } else {
+            status.className = 'status err';
+            status.textContent = res.text;
+            btn.disabled = false;
+          }
+        })
+        .catch(function () {
+          status.className = 'status err';
+          status.textContent = 'Could not reach the TV. Check you are on the same Wi-Fi.';
+          btn.disabled = false;
+        });
+    });
+  </script>
+</body>
+</html>
