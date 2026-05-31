@@ -264,14 +264,15 @@ fun PlayerScreen(
             channel?.let { Text(text = it.name, color = Color.White, fontSize = 18.sp) }
         }
 
-        // Centre play/pause button with the overlay (and always while paused).
+        // Centre pause icon: shown only while paused, fading out when playback
+        // resumes. No play icon — the overlay/OK already make resuming obvious.
         AnimatedVisibility(
-            visible = error == null && (controlsVisible || !isPlaying),
+            visible = error == null && !isPlaying,
             enter = fadeIn(tween(FADE_MS)),
             exit = fadeOut(tween(FADE_MS)),
             modifier = Modifier.align(Alignment.Center),
         ) {
-            PlayPauseButton(playing = isPlaying)
+            PauseIcon()
         }
 
         AnimatedVisibility(
@@ -318,7 +319,7 @@ private fun LoadingDots(modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun PlayPauseButton(playing: Boolean) {
+private fun PauseIcon() {
     Canvas(modifier = Modifier.size(72.dp)) {
         val w = size.width
         val h = size.height
@@ -336,23 +337,10 @@ private fun PlayPauseButton(playing: Boolean) {
                     )
                 }
         val canvas = drawContext.canvas.nativeCanvas
-        if (playing) {
-            val barWidth = w * 0.26f
-            val radius = barWidth * 0.25f
-            canvas.drawRoundRect(w * 0.16f, h * 0.06f, w * 0.16f + barWidth, h * 0.94f, radius, radius, paint)
-            canvas.drawRoundRect(w * 0.58f, h * 0.06f, w * 0.58f + barWidth, h * 0.94f, radius, radius, paint)
-        } else {
-            // Rounded-corner play triangle.
-            paint.pathEffect = android.graphics.CornerPathEffect(w * 0.14f)
-            val path =
-                android.graphics.Path().apply {
-                    moveTo(w * 0.20f, h * 0.08f)
-                    lineTo(w * 0.20f, h * 0.92f)
-                    lineTo(w * 0.90f, h * 0.5f)
-                    close()
-                }
-            canvas.drawPath(path, paint)
-        }
+        val barWidth = w * 0.26f
+        val radius = barWidth * 0.25f
+        canvas.drawRoundRect(w * 0.16f, h * 0.06f, w * 0.16f + barWidth, h * 0.94f, radius, radius, paint)
+        canvas.drawRoundRect(w * 0.58f, h * 0.06f, w * 0.58f + barWidth, h * 0.94f, radius, radius, paint)
     }
 }
 
