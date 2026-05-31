@@ -7,10 +7,13 @@ import androidx.security.crypto.MasterKey
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dev.strix.core.common.model.StreamSourceConfig
 import dev.strix.core.common.onboarding.CredentialReceiver
+import dev.strix.core.common.onboarding.CredentialStore
 import dev.strix.core.common.result.StrixError
 import dev.strix.core.common.result.StrixResult
 import dev.strix.core.common.result.asFailure
 import dev.strix.core.common.result.asSuccess
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -24,7 +27,8 @@ class SecureCredentialStore
     @Inject
     constructor(
         @ApplicationContext context: Context,
-    ) : CredentialReceiver {
+    ) : CredentialReceiver,
+        CredentialStore {
         private val prefs: SharedPreferences by lazy {
             val masterKey =
                 MasterKey
@@ -65,20 +69,22 @@ class SecureCredentialStore
             }
 
         /** Reads the stored source, or null if onboarding never completed. */
-        fun current(): StreamSourceConfig? =
-            when (prefs.getString(KEY_TYPE, null)) {
-                TYPE_M3U -> prefs.getString(KEY_URL, null)?.let(StreamSourceConfig::M3u)
-                TYPE_XTREAM -> {
-                    val host = prefs.getString(KEY_HOST, null)
-                    val user = prefs.getString(KEY_USER, null)
-                    val pass = prefs.getString(KEY_PASS, null)
-                    if (host != null && user != null && pass != null) {
-                        StreamSourceConfig.Xtream(host, user, pass)
-                    } else {
-                        null
+        override suspend fun current(): StreamSourceConfig? =
+            withContext(Dispatchers.IO) {
+                when (prefs.getString(KEY_TYPE, null)) {
+                    TYPE_M3U -> prefs.getString(KEY_URL, null)?.let(StreamSourceConfig::M3u)
+                    TYPE_XTREAM -> {
+                        val host = prefs.getString(KEY_HOST, null)
+                        val user = prefs.getString(KEY_USER, null)
+                        val pass = prefs.getString(KEY_PASS, null)
+                        if (host != null && user != null && pass != null) {
+                            StreamSourceConfig.Xtream(host, user, pass)
+                        } else {
+                            null
+                        }
                     }
+                    else -> null
                 }
-                else -> null
             }
 
         private companion object {
