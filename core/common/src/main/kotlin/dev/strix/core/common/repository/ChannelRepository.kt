@@ -24,6 +24,12 @@ interface ChannelRepository {
     /** Looks up a single channel by id, or `null` if unknown. */
     suspend fun channelById(id: ChannelId): Channel?
 
+    /** The next channel in playlist order (for zapping), or `null` at the end. */
+    suspend fun nextChannel(id: ChannelId): Channel?
+
+    /** The previous channel in playlist order, or `null` at the start. */
+    suspend fun previousChannel(id: ChannelId): Channel?
+
     /**
      * Refreshes the local store from [source] (streaming parse + batched write).
      * Returns the number of channels imported on success.

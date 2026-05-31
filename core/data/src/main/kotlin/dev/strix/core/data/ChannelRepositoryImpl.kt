@@ -32,9 +32,8 @@ import javax.inject.Inject
  *
  * Reads come straight from Room (paging + flows); a refresh streams the playlist
  * over OkHttp, parses it line by line, and writes it to Room in batches
- * ([PlaylistImporter]) so a large playlist is never held whole in RAM. Both the
- * M3U and Xtream paths fetch through [ChallengeAwareFetcher] so providers behind
- * a JS anti-leech wall are handled transparently.
+ * ([PlaylistImporter]) so a large playlist is never held whole in RAM. The
+ * Xtream path resolves channels through [XtreamClient] instead of parsing M3U.
  */
 class ChannelRepositoryImpl
     @Inject
@@ -57,6 +56,16 @@ class ChannelRepositoryImpl
         override suspend fun channelById(id: ChannelId): Channel? =
             withContext(dispatchers.io) {
                 dao.findByChannelId(id.value)?.toDomain()
+            }
+
+        override suspend fun nextChannel(id: ChannelId): Channel? =
+            withContext(dispatchers.io) {
+                dao.findNext(id.value)?.toDomain()
+            }
+
+        override suspend fun previousChannel(id: ChannelId): Channel? =
+            withContext(dispatchers.io) {
+                dao.findPrevious(id.value)?.toDomain()
             }
 
         override fun pagedChannels(query: String?): Flow<PagingData<Channel>> {

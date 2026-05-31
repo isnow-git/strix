@@ -55,6 +55,22 @@ interface ChannelDao {
     @Query("SELECT * FROM channels WHERE channelId = :channelId LIMIT 1")
     suspend fun findByChannelId(channelId: String): ChannelEntity?
 
+    /** The next channel in playlist order, for D-pad zapping. Null at the end. */
+    @Query(
+        "SELECT * FROM channels WHERE sortIndex > " +
+            "(SELECT sortIndex FROM channels WHERE channelId = :channelId) " +
+            "ORDER BY sortIndex ASC LIMIT 1",
+    )
+    suspend fun findNext(channelId: String): ChannelEntity?
+
+    /** The previous channel in playlist order. Null at the start. */
+    @Query(
+        "SELECT * FROM channels WHERE sortIndex < " +
+            "(SELECT sortIndex FROM channels WHERE channelId = :channelId) " +
+            "ORDER BY sortIndex DESC LIMIT 1",
+    )
+    suspend fun findPrevious(channelId: String): ChannelEntity?
+
     @Query("SELECT COUNT(*) FROM channels")
     suspend fun count(): Int
 
