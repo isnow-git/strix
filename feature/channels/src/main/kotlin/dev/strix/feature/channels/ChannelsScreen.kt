@@ -113,6 +113,12 @@ fun ChannelsScreen(
     var expanded by remember { mutableStateOf(false) }
     var playerChannelId by remember { mutableStateOf<String?>(null) }
     val fullscreenFocus = remember { FocusRequester() }
+    // Fullscreen is already full-size; only its alpha fades in/out.
+    val fullscreenAlpha by animateFloatAsState(
+        targetValue = if (expanded) 1f else 0f,
+        animationSpec = tween(durationMillis = 260, easing = LinearEasing),
+        label = "fullscreen",
+    )
     val lifecycleOwner = LocalLifecycleOwner.current
 
     // Plays a channel on the shared preview player (no-op if already playing it).
@@ -253,7 +259,10 @@ fun ChannelsScreen(
                         epg = previewEpg,
                         imageLoader = imageLoader,
                         player = previewPlayer,
-                        showVideo = showVideo && !expanded,
+                        ready = showVideo,
+                        // Render the preview video only once fullscreen is fully gone
+                        // (one surface at a time); the logo state is independent.
+                        renderVideo = showVideo && fullscreenAlpha < 0.01f,
                         modifier = Modifier.width(PREVIEW_WIDTH.dp).fillMaxHeight().padding(start = 28.dp),
                     )
                 }
@@ -261,11 +270,12 @@ fun ChannelsScreen(
         }
 
             // Fullscreen player overlay: reuses the running preview, no re-buffer.
-            if (expanded) {
+            if (fullscreenAlpha > 0.001f) {
                 FullscreenPlayer(
                     player = previewPlayer,
                     channel = previewChannel,
                     ready = showVideo,
+                    alpha = fullscreenAlpha,
                     focus = fullscreenFocus,
                     onCollapse = { expanded = false },
                 )
@@ -279,6 +289,7 @@ private fun FullscreenPlayer(
     player: ExoPlayer,
     channel: Channel?,
     ready: Boolean,
+    alpha: Float,
     focus: FocusRequester,
     onCollapse: () -> Unit,
 ) {
@@ -287,6 +298,7 @@ private fun FullscreenPlayer(
         modifier =
             Modifier
                 .fillMaxSize()
+                .alpha(alpha)
                 .background(Color.Black)
                 .focusRequester(focus)
                 .focusable()
@@ -337,7 +349,8 @@ private fun PreviewPanel(
     epg: NowNext?,
     imageLoader: ImageLoader,
     player: ExoPlayer,
-    showVideo: Boolean,
+    ready: Boolean,
+    renderVideo: Boolean,
     modifier: Modifier = Modifier,
 ) {
     channel ?: return
@@ -372,7 +385,7 @@ private fun PreviewPanel(
                     .clip(RoundedCornerShape(16.dp)),
         ) {
             // Video behind, fit to 16:9; rendered only once ready so no stale frame.
-            if (showVideo) {
+            if (renderVideo) {
                 AndroidView(
                     modifier = Modifier.fillMaxSize(),
                     factory = { context ->
@@ -387,8 +400,8 @@ private fun PreviewPanel(
             // Solid logo block on top: covers instantly on change, then fades out
             // as one (opaque background fused with the logo) to reveal the video.
             val logoAlpha by animateFloatAsState(
-                targetValue = if (showVideo) 0f else 1f,
-                animationSpec = tween(durationMillis = if (showVideo) 900 else 0, easing = LinearEasing),
+                targetValue = if (ready) 0f else 1f,
+                animationSpec = tween(durationMillis = if (ready) 900 else 0, easing = LinearEasing),
                 label = "previewLogo",
             )
             Box(
