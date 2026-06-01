@@ -7,6 +7,7 @@ import dev.strix.core.common.epg.NowNext
 import dev.strix.core.common.model.Channel
 import dev.strix.core.common.model.StreamSourceConfig
 import dev.strix.core.common.onboarding.CredentialStore
+import dev.strix.core.database.dao.ChannelDao
 import dev.strix.core.network.xtream.XtreamClient
 import dev.strix.core.network.xtream.XtreamEpgEntry
 import kotlinx.coroutines.withContext
@@ -17,9 +18,16 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * Now/next EPG via Xtream `get_short_epg`, fetched lazily per channel and cached
- * in memory with a short TTL so opening or focusing a channel costs at most one
- * request. Plain M3U sources (no EPG API) and non-Xtream channels return null.
+ * Now/next EPG via Xtream, with two upgrades over the raw provider feed:
+ *
+ * - **Id inheritance**: a channel the provider didn't map to EPG (empty
+ *   `epg_channel_id`, common for "+1"/backup feeds) borrows the EPG of a live
+ *   sibling of the same logical channel ([ChannelDao.epgSibling]).
+ * - **Time-shift correction**: for a delayed feed the reference time is moved
+ *   back by the shift, and the full-day table ([XtreamClient.fullEpg]) is used so
+ *   the programme that actually airs now is found.
+ *
+ * Lazy per channel and cached with a short TTL, so it stays cheap on a TV.
  */
 @Singleton
 class EpgRepositoryImpl
@@ -27,6 +35,7 @@ class EpgRepositoryImpl
     constructor(
         private val credentialStore: CredentialStore,
         private val xtreamClient: XtreamClient,
+        private val dao: ChannelDao,
         private val dispatchers: DispatcherProvider,
     ) : EpgRepository {
         private val cache = ConcurrentHashMap<String, Cached>()
@@ -35,15 +44,30 @@ class EpgRepositoryImpl
             withContext(dispatchers.io) {
                 val id = channel.id.value
                 if (!id.startsWith(XTREAM_PREFIX)) return@withContext null
-                val streamId = id.substringAfterLast(':').toLongOrNull() ?: return@withContext null
                 val config = credentialStore.current() as? StreamSourceConfig.Xtream
                     ?: return@withContext null
+                val ownStreamId = streamIdOf(id) ?: return@withContext null
+                val row = dao.findByChannelId(id) ?: return@withContext null
 
                 cache[id]?.takeIf { it.expiresAt > now() }?.let { return@withContext it.value }
 
+                val offsetHours = row.timeshift.takeIf { it > 0 } ?: 0
+                val sourceStreamId =
+                    if (row.epgChannelId != null) {
+                        ownStreamId
+                    } else {
+                        dao.epgSibling(row.epgBaseKey)?.let { streamIdOf(it.channelId) } ?: ownStreamId
+                    }
+
                 val nowNext =
                     try {
-                        toNowNext(xtreamClient.shortEpg(config, streamId, EPG_LIMIT))
+                        val entries =
+                            if (offsetHours == 0) {
+                                xtreamClient.shortEpg(config, sourceStreamId, EPG_LIMIT)
+                            } else {
+                                xtreamClient.fullEpg(config, sourceStreamId)
+                            }
+                        toNowNext(entries, referenceSec = now() / 1000 - offsetHours * SECONDS_PER_HOUR)
                     } catch (e: IOException) {
                         null
                     }
@@ -51,12 +75,14 @@ class EpgRepositoryImpl
                 nowNext
             }
 
-        private fun toNowNext(entries: List<XtreamEpgEntry>): NowNext {
-            val nowSec = now() / 1000
+        private fun toNowNext(
+            entries: List<XtreamEpgEntry>,
+            referenceSec: Long,
+        ): NowNext {
             val programmes = entries.mapNotNull { it.toProgramme() }.sortedBy { it.startEpochSec }
             return NowNext(
-                current = programmes.firstOrNull { nowSec in it.startEpochSec until it.endEpochSec },
-                next = programmes.firstOrNull { it.startEpochSec > nowSec },
+                current = programmes.firstOrNull { referenceSec in it.startEpochSec until it.endEpochSec },
+                next = programmes.firstOrNull { it.startEpochSec > referenceSec },
             )
         }
 
@@ -66,6 +92,8 @@ class EpgRepositoryImpl
             val title = titleBase64?.let(::decodeBase64)?.takeIf { it.isNotBlank() } ?: return null
             return EpgProgramme(title = title, startEpochSec = start, endEpochSec = end)
         }
+
+        private fun streamIdOf(channelId: String): Long? = channelId.substringAfterLast(':').toLongOrNull()
 
         @Suppress("TooGenericExceptionCaught") // Malformed base64 must not break EPG.
         private fun decodeBase64(value: String): String? =
@@ -86,5 +114,6 @@ class EpgRepositoryImpl
             const val XTREAM_PREFIX = "xtream:"
             const val EPG_LIMIT = 4
             const val TTL_MS = 5 * 60 * 1000L
+            const val SECONDS_PER_HOUR = 3600L
         }
     }

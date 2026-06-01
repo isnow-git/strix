@@ -21,6 +21,7 @@ fun ChannelEntity.toDomain(): Channel =
         number = number,
         qualityLabel = qualityLabel,
         displayName = ChannelQuality.displayName(name),
+        epgChannelId = epgChannelId,
     )
 
 /**
@@ -45,6 +46,9 @@ fun Channel.toEntity(sortIndex: Int): ChannelEntity {
         baseKey = ChannelQuality.groupKey(epgChannelId, quality),
         qualityRank = quality.qualityRank,
         qualityLabel = quality.qualityLabel,
+        epgChannelId = epgChannelId,
+        timeshift = quality.timeshift,
+        epgBaseKey = ChannelQuality.epgBaseKey(quality),
     )
 }
 

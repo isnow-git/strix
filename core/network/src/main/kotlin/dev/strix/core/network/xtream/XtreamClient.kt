@@ -49,6 +49,16 @@ class XtreamClient
             return decode<XtreamEpgResponse>(url).listings
         }
 
+        /** Full-day EPG for a stream (`get_simple_data_table`); used for shifted feeds. */
+        fun fullEpg(
+            config: StreamSourceConfig.Xtream,
+            streamId: Long,
+        ): List<XtreamEpgEntry> {
+            val base = normalizeXtreamBase(config.host)
+            val url = apiUrl(base, config, "get_simple_data_table") + "&stream_id=$streamId"
+            return decode<XtreamEpgResponse>(url).listings
+        }
+
         private inline fun <reified T> decodeList(url: String): List<T> =
             decodeBody(url) { json.decodeFromString<List<T>>(it) }
 

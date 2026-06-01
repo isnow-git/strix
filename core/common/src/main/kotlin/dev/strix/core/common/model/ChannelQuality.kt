@@ -102,6 +102,15 @@ object ChannelQuality {
     }
 
     /**
+     * Logical-channel key from the name alone (ignoring EPG id and time-shift), so
+     * every variant of one channel shares it — including a "+1" feed with no EPG
+     * id and the live feed that has one. Used to inherit an EPG source from a
+     * sibling. Deliberately name-based: a channel missing an EPG id has no other
+     * way to find its sibling.
+     */
+    fun epgBaseKey(info: QualityInfo): String = "n:${info.baseKey}"
+
+    /**
      * A clean display name: strips the country prefix, quality, codec and junk
      * symbols so a row reads "TF1" instead of "FR - TF1 HEVC". A time-shift is
      * kept (as " +1") so a delayed feed stays distinguishable from the live one.

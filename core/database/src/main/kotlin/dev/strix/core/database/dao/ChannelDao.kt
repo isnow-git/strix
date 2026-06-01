@@ -75,6 +75,13 @@ interface ChannelDao {
     @Query("SELECT * FROM channels WHERE channelId = :channelId LIMIT 1")
     suspend fun findByChannelId(channelId: String): ChannelEntity?
 
+    /** A live sibling of the same logical channel that has a provider EPG id. */
+    @Query(
+        "SELECT * FROM channels WHERE epgBaseKey = :epgBaseKey " +
+            "AND epgChannelId IS NOT NULL AND timeshift = 0 ORDER BY qualityRank ASC LIMIT 1",
+    )
+    suspend fun epgSibling(epgBaseKey: String): ChannelEntity?
+
     /** The next channel (representative) in playlist order, for D-pad zapping. */
     @Query(
         "SELECT * FROM channels WHERE isPrimary = 1 AND sortIndex > " +

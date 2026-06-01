@@ -23,6 +23,7 @@ import androidx.room.PrimaryKey
         Index(value = ["sortIndex"]),
         Index(value = ["baseKey"]),
         Index(value = ["isPrimary"]),
+        Index(value = ["epgBaseKey"]),
     ],
 )
 data class ChannelEntity(
@@ -44,4 +45,10 @@ data class ChannelEntity(
     val qualityLabel: String?,
     /** True for the representative (best-quality) variant of each [baseKey]. */
     val isPrimary: Boolean = false,
+    /** Provider EPG id (empty when unmapped), used to fetch/inherit EPG. */
+    val epgChannelId: String?,
+    /** Time-shift in hours (0 = live, >0 delayed, -1 unknown), for EPG offset. */
+    val timeshift: Int,
+    /** Logical-channel key ignoring time-shift, for inheriting an EPG source. */
+    val epgBaseKey: String,
 )

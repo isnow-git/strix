@@ -15,7 +15,7 @@ import dev.strix.core.database.entity.ChannelFtsEntity
         ChannelEntity::class,
         ChannelFtsEntity::class,
     ],
-    version = 2,
+    version = 3,
     exportSchema = true,
 )
 abstract class StrixDatabase : RoomDatabase() {
