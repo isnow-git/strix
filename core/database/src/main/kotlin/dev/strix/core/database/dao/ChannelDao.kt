@@ -10,6 +10,12 @@ import dev.strix.core.database.entity.ChannelEntity
 import dev.strix.core.database.entity.ChannelFtsEntity
 import kotlinx.coroutines.flow.Flow
 
+/** One keyset page of the catalogue: the window's rows plus the overall total. */
+data class ChannelPage(
+    val total: Int,
+    val rows: List<ChannelEntity>,
+)
+
 /**
  * Channel data access.
  *
@@ -21,15 +27,32 @@ import kotlinx.coroutines.flow.Flow
  */
 @Dao
 interface ChannelDao {
+    /** Total channels in the fixed catalogue (those with a `channelNumber`). */
+    @Query("SELECT COUNT(*) FROM channels WHERE channelNumber > 0")
+    suspend fun numberedCount(): Int
+
     /**
-     * One representative row per channel, in fixed catalogue order. `channelNumber`
-     * is assigned (1..N) over exactly the visible set — primary, non-adult,
-     * generalist first then playlist order — so filtering and ordering by it is a
-     * pure index walk (no per-row filter, no computed sort). This is what keeps a
-     * jump to a far row instant on the full ~10k-channel list.
+     * One window of the catalogue by keyset: the [limit] channels whose
+     * `channelNumber` is `>= startNumber`, in order. `channelNumber` is dense (1..N)
+     * and indexed, so this is an index seek + page read — O(log n + limit) at any
+     * position, unlike OFFSET which re-reads everything before the window.
      */
-    @Query("SELECT * FROM channels WHERE channelNumber > 0 ORDER BY channelNumber ASC")
-    fun pagingSource(): PagingSource<Int, ChannelEntity>
+    @Query("SELECT * FROM channels WHERE channelNumber >= :startNumber ORDER BY channelNumber ASC LIMIT :limit")
+    suspend fun numberedWindow(
+        startNumber: Int,
+        limit: Int,
+    ): List<ChannelEntity>
+
+    /** Count + one keyset window read atomically, for a consistent paged snapshot. */
+    @Transaction
+    suspend fun numberedPage(
+        startNumber: Int,
+        limit: Int,
+    ): ChannelPage {
+        val total = numberedCount()
+        val start = startNumber.coerceIn(1, maxOf(1, total))
+        return ChannelPage(total = total, rows = numberedWindow(start, limit))
+    }
 
     /** Representative rows of a single canonical category, in playlist order. */
     @Query("SELECT * FROM channels WHERE isPrimary = 1 AND category = :category ORDER BY sortIndex ASC")

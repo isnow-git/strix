@@ -15,6 +15,7 @@ import dev.strix.core.common.result.StrixError
 import dev.strix.core.common.result.StrixResult
 import dev.strix.core.common.result.asFailure
 import dev.strix.core.common.result.asSuccess
+import dev.strix.core.database.StrixDatabase
 import dev.strix.core.database.dao.ChannelDao
 import dev.strix.core.database.mapper.toDomain
 import dev.strix.core.database.search.FtsQuery
@@ -48,6 +49,7 @@ class ChannelRepositoryImpl
     @Inject
     constructor(
         private val dao: ChannelDao,
+        private val database: StrixDatabase,
         private val okHttpClient: OkHttpClient,
         private val xtreamClient: XtreamClient,
         private val iptvOrgClient: IptvOrgClient,
@@ -138,7 +140,8 @@ class ChannelRepositoryImpl
                     when {
                         match != null -> dao.searchPagingSource(match)
                         group != null -> dao.pagingSourceByCategory(group)
-                        else -> dao.pagingSource()
+                        // Full catalogue: keyset source so deep scroll/zap stay O(pageSize).
+                        else -> ChannelCatalogPagingSource(dao, database)
                     }
                 },
             ).flow.map { pagingData -> pagingData.map { it.toDomain() } }

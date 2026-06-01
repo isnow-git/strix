@@ -13,6 +13,7 @@ dependencies {
     implementation(projects.core.network)
 
     implementation(libs.paging.runtime)
+    implementation(libs.room.runtime)
     implementation(libs.okhttp)
     implementation(libs.kotlinx.coroutines.android)
 

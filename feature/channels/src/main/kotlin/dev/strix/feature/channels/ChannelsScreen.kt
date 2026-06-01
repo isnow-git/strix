@@ -136,6 +136,7 @@ fun ChannelsScreen(
     // so this jumps straight to the target however far down it is.
     var pendingScrollIndex by remember { mutableIntStateOf(-1) }
     val listState = rememberLazyListState()
+    val density = LocalDensity.current
 
     // Returning from fullscreen, land back on the channel. After a zap we jump the
     // list to the target's row, wait for that row to actually load into the window
@@ -146,7 +147,12 @@ fun ChannelsScreen(
         val scrollTo = pendingScrollIndex
         pendingScrollIndex = -1
         if (scrollTo >= 0) {
-            runCatching { listState.scrollToItem((scrollTo - ZAP_CONTEXT_ROWS).coerceAtLeast(0)) }
+            // Land the target in the middle of the list (not glued to an edge), so
+            // focusing it afterwards doesn't visibly re-scroll.
+            val viewportPx = listState.layoutInfo.viewportSize.height
+            val rowPx = with(density) { (ROW_HEIGHT + ROW_SPACING).dp.roundToPx() }
+            val centerOffset = if (viewportPx > rowPx) -((viewportPx - rowPx) / 2) else 0
+            runCatching { listState.scrollToItem(scrollTo, centerOffset) }
         }
         var tries = 0
         while (tries < FOCUS_RETRIES) {
@@ -159,7 +165,6 @@ fun ChannelsScreen(
     var slotRect by remember { mutableStateOf(Rect.Zero) }
     var rootWidth by remember { mutableIntStateOf(0) }
     var rootHeight by remember { mutableIntStateOf(0) }
-    val density = LocalDensity.current
     // One player view animates its bounds from the preview slot to fullscreen.
     val expandProgress by animateFloatAsState(
         targetValue = if (expanded) 1f else 0f,
@@ -317,7 +322,7 @@ fun ChannelsScreen(
                             else ->
                                 LazyColumn(
                                     state = listState,
-                                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                                    verticalArrangement = Arrangement.spacedBy(ROW_SPACING.dp),
                                     contentPadding = PaddingValues(bottom = 56.dp),
                                 ) {
                                     items(
@@ -840,8 +845,8 @@ private const val MAX_NUMBER_DIGITS = 4
 private const val FOCUS_RETRIES = 120
 private const val FOCUS_RETRY_MS = 25L
 
-// Channels kept visible above the zapped-to row so it isn't glued to the top edge.
-private const val ZAP_CONTEXT_ROWS = 4
+// Vertical gap between channel rows (dp); also used to center a zapped row.
+private const val ROW_SPACING = 6
 
 private val BACKGROUND = Color(0xFF0B0B0F)
 private val BACKGROUND_TOP = Color(0xFF15151F)
