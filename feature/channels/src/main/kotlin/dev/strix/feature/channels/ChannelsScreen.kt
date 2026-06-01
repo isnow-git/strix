@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -108,6 +109,7 @@ fun ChannelsScreen(
                         ) { index ->
                             val channel = channels[index] ?: return@items
                             ChannelRow(
+                                position = index + 1,
                                 channel = channel,
                                 imageLoader = imageLoader,
                                 onFocused = { viewModel.onIntent(ChannelsIntent.ChannelFocused(channel)) },
@@ -251,6 +253,7 @@ private fun SearchField(
 
 @Composable
 private fun ChannelRow(
+    position: Int,
     channel: Channel,
     imageLoader: ImageLoader,
     onFocused: () -> Unit,
@@ -277,6 +280,13 @@ private fun ChannelRow(
             horizontalArrangement = Arrangement.spacedBy(16.dp),
             modifier = surface.fillMaxSize().padding(horizontal = 14.dp),
         ) {
+            Text(
+                text = "$position",
+                color = MUTED,
+                fontSize = 13.sp,
+                maxLines = 1,
+                modifier = Modifier.width(40.dp),
+            )
             LogoBox(channel = channel, imageLoader = imageLoader)
             Text(
                 text = channel.displayName.ifBlank { channel.name },
@@ -286,9 +296,6 @@ private fun ChannelRow(
                 maxLines = 1,
                 modifier = Modifier.weight(1f),
             )
-            channel.number?.let { number ->
-                Text(text = "$number", color = MUTED, fontSize = 13.sp)
-            }
         }
     }
 }

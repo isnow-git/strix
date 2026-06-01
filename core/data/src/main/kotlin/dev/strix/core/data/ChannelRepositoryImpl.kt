@@ -9,6 +9,7 @@ import dev.strix.core.common.epg.normalizeEpgId
 import dev.strix.core.common.model.Channel
 import dev.strix.core.common.model.ChannelId
 import dev.strix.core.common.model.StreamSourceConfig
+import dev.strix.core.common.model.isSeparatorChannel
 import dev.strix.core.common.repository.ChannelRepository
 import dev.strix.core.common.result.StrixError
 import dev.strix.core.common.result.StrixResult
@@ -148,7 +149,11 @@ class ChannelRepositoryImpl
                     dao.clearChannels()
                     dao.clearFts()
                     body.charStream().buffered().useLines { lines ->
-                        val channels = parser.parse(lines).map { it.categorized(categories) }
+                        val channels =
+                            parser
+                                .parse(lines)
+                                .filterNot { isSeparatorChannel(it.name, it.streamUrl) }
+                                .map { it.categorized(categories) }
                         importer.import(channels) { batch, fts ->
                             dao.insertBatch(batch, fts)
                         }
@@ -165,7 +170,13 @@ class ChannelRepositoryImpl
                     shouldRetry = { it is IOException },
                 ) {
                     val categories = categoryMap()
-                    val channels = xtreamClient.liveChannels(config).map { it.categorized(categories) }
+                    val channels =
+                        xtreamClient
+                            .liveChannels(config)
+                            .asSequence()
+                            .filterNot { isSeparatorChannel(it.name, it.streamUrl) }
+                            .map { it.categorized(categories) }
+                            .toList()
                     dao.clearChannels()
                     dao.clearFts()
                     val count =
