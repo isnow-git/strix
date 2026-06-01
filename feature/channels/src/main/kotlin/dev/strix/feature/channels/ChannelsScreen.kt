@@ -283,32 +283,11 @@ private fun PreviewPanel(
                     .aspectRatio(16f / 9f)
                     .clip(RoundedCornerShape(16.dp)),
         ) {
-            // Video sits behind, fit to the 16:9 frame (no crop), rendered only
-            // once it's ready so a previous channel's frozen frame never shows.
-            if (showVideo) {
-                AndroidView(
-                    modifier = Modifier.fillMaxSize(),
-                    factory = { context ->
-                        PlayerView(context).apply {
-                            useController = false
-                            resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
-                            setPlayer(player)
-                        }
-                    },
-                    update = { it.setPlayer(player) },
-                )
-            }
-            // Logo covers instantly on change, then fades out to reveal the video.
-            val logoAlpha by animateFloatAsState(
-                targetValue = if (showVideo) 0f else 1f,
-                animationSpec = tween(durationMillis = if (showVideo) 900 else 0, easing = LinearEasing),
-                label = "previewLogo",
-            )
+            // Logo behind, always opaque.
             Box(
                 modifier =
                     Modifier
                         .fillMaxSize()
-                        .alpha(logoAlpha)
                         .background(LOGO_BG)
                         .border(1.dp, LOGO_BORDER, RoundedCornerShape(16.dp)),
                 contentAlignment = Alignment.Center,
@@ -329,6 +308,26 @@ private fun PreviewPanel(
                         fontWeight = FontWeight.Bold,
                     )
                 }
+            }
+            // Video over the logo: fades in when ready, disappears instantly on
+            // change (rendered only while showing, so no stale frame).
+            val videoAlpha by animateFloatAsState(
+                targetValue = if (showVideo) 1f else 0f,
+                animationSpec = tween(durationMillis = if (showVideo) 700 else 0, easing = LinearEasing),
+                label = "previewVideo",
+            )
+            if (showVideo) {
+                AndroidView(
+                    modifier = Modifier.fillMaxSize().alpha(videoAlpha),
+                    factory = { context ->
+                        PlayerView(context).apply {
+                            useController = false
+                            resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
+                            setPlayer(player)
+                        }
+                    },
+                    update = { it.setPlayer(player) },
+                )
             }
         }
 
