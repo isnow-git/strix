@@ -46,3 +46,6 @@ Thumbs.db
 
 # Kotlin
 .kotlin/
+
+# Local screenshots pulled from the TV for verification
+/*.png
