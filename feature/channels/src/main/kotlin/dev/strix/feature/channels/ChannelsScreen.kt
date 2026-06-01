@@ -57,8 +57,6 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.TransformOrigin
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
@@ -72,7 +70,6 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.util.lerp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.paging.LoadState
@@ -263,18 +260,12 @@ fun ChannelsScreen(
             }
         }
 
-            // Fullscreen player overlay: expands the running preview, no re-buffer.
-            val expandProgress by animateFloatAsState(
-                targetValue = if (expanded) 1f else 0f,
-                animationSpec = tween(durationMillis = 320, easing = LinearEasing),
-                label = "expand",
-            )
-            if (expandProgress > 0.001f) {
+            // Fullscreen player overlay: reuses the running preview, no re-buffer.
+            if (expanded) {
                 FullscreenPlayer(
                     player = previewPlayer,
                     channel = previewChannel,
                     ready = showVideo,
-                    progress = expandProgress,
                     focus = fullscreenFocus,
                     onCollapse = { expanded = false },
                 )
@@ -288,7 +279,6 @@ private fun FullscreenPlayer(
     player: ExoPlayer,
     channel: Channel?,
     ready: Boolean,
-    progress: Float,
     focus: FocusRequester,
     onCollapse: () -> Unit,
 ) {
@@ -297,14 +287,7 @@ private fun FullscreenPlayer(
         modifier =
             Modifier
                 .fillMaxSize()
-                .graphicsLayer {
-                    // Grow out of the preview panel's area (upper-right) to fullscreen.
-                    val s = lerp(0.4f, 1f, progress)
-                    scaleX = s
-                    scaleY = s
-                    alpha = progress
-                    transformOrigin = TransformOrigin(0.82f, 0.32f)
-                }.background(Color.Black)
+                .background(Color.Black)
                 .focusRequester(focus)
                 .focusable()
                 .onKeyEvent { event ->
