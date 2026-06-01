@@ -22,15 +22,22 @@ memory and network use, no jank) and a **clean, SOLID architecture**.
 
 ---
 
-## Features (target)
+## Features
 
 - 📺 M3U playlists **and** Xtream Codes accounts
 - 🔍 Instant prefix search over thousands of channels (SQLite FTS)
 - ⚡ Smooth zapping with debounced, cancellable channel switching
+- 🪟 Modern **liquid-glass** channel home (Outfit type scale, D-pad focus ring)
+- 👁️ **Live side preview**: the focused channel streams muted-then-audible in a
+  panel with logo, now/next EPG and synopsis; pressing OK zooms the *same*
+  stream to fullscreen with no re-buffer
+- 🗂️ **Browse by category** — canonical rail backed by iptv-org + a keyword
+  classifier fallback
+- 🎚️ **Quality grouping** — one row per channel, automatic fallback across SD/HD/4K variants
+- 🗓️ **EPG now/next** — XMLTV ingestion + Xtream provider fallback, timeshift-corrected
 - 📱 **No-cloud onboarding via QR**: the TV hosts a one-page form on the LAN; your
   phone scans a QR, fills it in, and submits — no painful remote typing
 - 🧭 D-pad-first UI built with **Jetpack Compose for TV**
-- 🗓️ EPG / program guide (optional)
 
 ## Tech stack
 
