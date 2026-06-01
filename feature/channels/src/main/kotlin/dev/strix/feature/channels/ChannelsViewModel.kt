@@ -35,6 +35,12 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+/** A keypad-zap result: the channel to play and the row to scroll the list to. */
+data class ZapTarget(
+    val channel: Channel,
+    val listIndex: Int,
+)
+
 /**
  * MVI ViewModel for the channels screen.
  *
@@ -73,13 +79,13 @@ class ChannelsViewModel
         fun createPreviewPlayer(): ExoPlayer = playerFactory.create()
 
         /**
-         * Resolves a typed keypad number to its channel and prepares the list to
-         * land on it: if the channel isn't in the currently selected category, the
-         * view switches to "Toutes"; either way the paged list is re-anchored to the
-         * channel's row so only the window around it is loaded. Returns the target
-         * (or null if no channel has that number).
+         * Resolves a typed keypad number to its channel and the row to land on: if
+         * the channel isn't in the currently selected category, the view switches to
+         * "Toutes" (where its row index is its fixed number − 1); otherwise it stays
+         * and the row index is the channel's position within the category. The screen
+         * scrolls there on return. Null if no channel has that number.
          */
-        suspend fun resolveZap(number: Int): Channel? {
+        suspend fun resolveZap(number: Int): ZapTarget? {
             val target = channelRepository.channelByNumber(number) ?: return null
             val current = selectedCategory.value
             val leaveCategory = current != null && target.category != current
@@ -91,8 +97,7 @@ class ChannelsViewModel
                     channelRepository.positionInCategory(newCategory, target.id)
                 }
             if (newCategory != current) selectedCategory.value = newCategory
-            anchorIndex.value = index
-            return target
+            return ZapTarget(target, index)
         }
 
         private val query = MutableStateFlow("")
@@ -100,9 +105,6 @@ class ChannelsViewModel
         private val error = MutableStateFlow<String?>(null)
         private val focusedChannel = MutableStateFlow<Channel?>(null)
         private val selectedCategory = MutableStateFlow<String?>(null)
-
-        // Row to start the paged list on (null = top); set when zapping to a channel.
-        private val anchorIndex = MutableStateFlow<Int?>(null)
 
         val uiState: StateFlow<ChannelsUiState> =
             combine(query, refreshing, error, selectedCategory) { query, refreshing, error, category ->
@@ -132,10 +134,9 @@ class ChannelsViewModel
             combine(
                 query.debounce(SEARCH_DEBOUNCE_MS).distinctUntilChanged(),
                 selectedCategory,
-                anchorIndex,
-            ) { query, category, anchor -> Triple(query, category, anchor) }
-                .flatMapLatest { (query, category, anchor) ->
-                    pagingRepository.pagedChannels(query.ifBlank { null }, category, anchor)
+            ) { query, category -> query to category }
+                .flatMapLatest { (query, category) ->
+                    pagingRepository.pagedChannels(query.ifBlank { null }, category)
                 }.cachedIn(viewModelScope)
 
         val playbackTarget: Flow<Channel> =
@@ -162,13 +163,11 @@ class ChannelsViewModel
             when (intent) {
                 is ChannelsIntent.SearchChanged -> {
                     query.value = intent.query
-                    anchorIndex.value = null
                     if (intent.query.isNotBlank()) selectedCategory.value = null
                 }
                 is ChannelsIntent.CategorySelected -> {
                     selectedCategory.value = intent.category
                     query.value = ""
-                    anchorIndex.value = null
                 }
                 is ChannelsIntent.ChannelFocused -> focusedChannel.value = intent.channel
                 is ChannelsIntent.Refresh -> refresh(intent.source)

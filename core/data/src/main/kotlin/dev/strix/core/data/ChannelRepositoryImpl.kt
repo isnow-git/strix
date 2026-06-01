@@ -116,16 +116,15 @@ class ChannelRepositoryImpl
         override fun pagedChannels(
             query: String?,
             category: String?,
-            anchorIndex: Int?,
         ): Flow<PagingData<Channel>> {
             val match = query?.takeUnless { it.isBlank() }?.let(FtsQuery::prefixMatch)
             val group = category?.takeUnless { it.isBlank() }
-            // Start a few rows above the anchor so the target isn't glued to the top
-            // edge and has visible context above it.
-            val initialKey = anchorIndex?.let { (it - ANCHOR_PRELOAD).coerceAtLeast(0) }
+            // Placeholders on: the list knows its full size, so a keypad zap can
+            // scrollToItem() straight to any row (even far down) and Paging loads
+            // only the window there. The null rows themselves are free (the window
+            // is the only thing materialised).
             return Pager(
-                config = PagingConfig(pageSize = PAGE_SIZE, enablePlaceholders = false),
-                initialKey = initialKey,
+                config = PagingConfig(pageSize = PAGE_SIZE, enablePlaceholders = true),
                 pagingSourceFactory = {
                     when {
                         match != null -> dao.searchPagingSource(match)
@@ -216,8 +215,5 @@ class ChannelRepositoryImpl
         private companion object {
             const val PAGE_SIZE = 40
             const val MAX_FETCH_ATTEMPTS = 3
-
-            // Rows to keep loaded above a zapped-to anchor (visible context above it).
-            const val ANCHOR_PRELOAD = 4
         }
     }

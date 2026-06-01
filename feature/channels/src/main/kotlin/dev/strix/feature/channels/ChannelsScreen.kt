@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
@@ -131,18 +132,20 @@ fun ChannelsScreen(
     // Remote keypad: digits typed accumulate here and zap to that channel number.
     var numberInput by remember { mutableStateOf("") }
     var searchFocused by remember { mutableStateOf(false) }
-    // Set when the open was a keypad zap: the list was re-anchored, so on return we
-    // snap to the top of the new window before focusing the target.
-    var pendingZapFocus by remember { mutableStateOf(false) }
+    // Row to scroll to after a keypad zap (-1 = none); the list shows placeholders
+    // so this jumps straight to the target however far down it is.
+    var pendingScrollIndex by remember { mutableIntStateOf(-1) }
     val listState = rememberLazyListState()
 
-    // Return focus to the channel we were watching after leaving fullscreen. After a
-    // zap the row may still be loading, so retry briefly until it attaches.
+    // Returning from fullscreen, land back on the channel. After a zap we jump the
+    // list to the target's row first; then focus it, retrying briefly while its
+    // page finishes loading.
     LaunchedEffect(expanded) {
         if (expanded || focusedChannelId == null) return@LaunchedEffect
-        if (pendingZapFocus) {
-            runCatching { listState.scrollToItem(0) }
-            pendingZapFocus = false
+        val scrollTo = pendingScrollIndex
+        if (scrollTo >= 0) {
+            runCatching { listState.scrollToItem((scrollTo - ZAP_CONTEXT_ROWS).coerceAtLeast(0)) }
+            pendingScrollIndex = -1
         }
         var tries = 0
         while (tries < FOCUS_RETRIES && runCatching { rowFocus.requestFocus() }.isFailure) {
@@ -228,16 +231,16 @@ fun ChannelsScreen(
         delay(NUMBER_COMMIT_MS)
         val number = numberInput.toIntOrNull()
         numberInput = ""
-        // resolveZap also re-anchors the paged list (and switches to "Toutes" if the
-        // channel isn't in the current category) so it lands on the target on return.
-        val target = number?.let { viewModel.resolveZap(it) } ?: return@LaunchedEffect
+        // resolveZap switches to "Toutes" if the channel isn't in the current
+        // category, and returns the row to scroll to on return.
+        val zap = number?.let { viewModel.resolveZap(it) } ?: return@LaunchedEffect
         // Keep the list/preview state in sync so returning from fullscreen is coherent.
         // The preview LaunchedEffect above is guarded by `expanded`, so this won't
         // trigger a stop/restart of the stream we're about to play.
-        viewModel.onIntent(ChannelsIntent.ChannelFocused(target))
-        focusedChannelId = target.id.value
-        pendingZapFocus = true
-        playOn(target)
+        viewModel.onIntent(ChannelsIntent.ChannelFocused(zap.channel))
+        focusedChannelId = zap.channel.id.value
+        pendingScrollIndex = zap.listIndex
+        playOn(zap.channel)
         expanded = true
     }
 
@@ -319,21 +322,27 @@ fun ChannelsScreen(
                                         key = channels.itemKey { it.id.value },
                                         contentType = channels.itemContentType { "channel" },
                                     ) { index ->
-                                        val channel = channels[index] ?: return@items
-                                        ChannelRow(
-                                            channel = channel,
-                                            imageLoader = imageLoader,
-                                            focusRequester =
-                                                if (channel.id.value == focusedChannelId) rowFocus else null,
-                                            onFocused = {
-                                                focusedChannelId = channel.id.value
-                                                viewModel.onIntent(ChannelsIntent.ChannelFocused(channel))
-                                            },
-                                            onClick = {
-                                                playOn(channel)
-                                                expanded = true
-                                            },
-                                        )
+                                        // Placeholder (not yet loaded): keep the row's
+                                        // height so scroll positions stay exact.
+                                        val channel = channels[index]
+                                        if (channel == null) {
+                                            Spacer(Modifier.fillMaxWidth().height(ROW_HEIGHT.dp))
+                                        } else {
+                                            ChannelRow(
+                                                channel = channel,
+                                                imageLoader = imageLoader,
+                                                focusRequester =
+                                                    if (channel.id.value == focusedChannelId) rowFocus else null,
+                                                onFocused = {
+                                                    focusedChannelId = channel.id.value
+                                                    viewModel.onIntent(ChannelsIntent.ChannelFocused(channel))
+                                                },
+                                                onClick = {
+                                                    playOn(channel)
+                                                    expanded = true
+                                                },
+                                            )
+                                        }
                                     }
                                 }
                         }
@@ -827,6 +836,9 @@ private const val MAX_NUMBER_DIGITS = 4
 // loading (≈1s budget).
 private const val FOCUS_RETRIES = 40
 private const val FOCUS_RETRY_MS = 25L
+
+// Channels kept visible above the zapped-to row so it isn't glued to the top edge.
+private const val ZAP_CONTEXT_ROWS = 4
 
 private val BACKGROUND = Color(0xFF0B0B0F)
 private val BACKGROUND_TOP = Color(0xFF15151F)

@@ -12,17 +12,15 @@ import kotlinx.coroutines.flow.Flow
 interface ChannelPagingRepository {
     /**
      * A paged stream of channels. A non-blank [query] runs an FTS prefix search
-     * across all channels; otherwise a non-null [category] filters by group. The
-     * UI only ever holds a window of rows.
+     * across all channels; otherwise a non-null [category] filters by group.
      *
-     * [anchorIndex], when set, starts the load around that row position instead of
-     * the top — used to land on a keypad-zapped channel that wasn't loaded yet,
-     * so only the window around it is fetched (and scrolling loads the rest).
+     * Placeholders are enabled so the list reports its full size: the UI can jump
+     * (scrollToItem) to any row — e.g. a keypad-zapped channel far down — and only
+     * the window around it is actually loaded.
      */
     fun pagedChannels(
         query: String? = null,
         category: String? = null,
-        anchorIndex: Int? = null,
     ): Flow<PagingData<Channel>>
 
     /** Distinct category names for the filter rail. */

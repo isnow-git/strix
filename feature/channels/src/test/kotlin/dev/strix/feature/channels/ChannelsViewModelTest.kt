@@ -34,7 +34,6 @@ class ChannelsViewModelTest {
             override fun pagedChannels(
                 query: String?,
                 category: String?,
-                anchorIndex: Int?,
             ): Flow<PagingData<Channel>> = flowOf(PagingData.empty())
 
             override fun categories(): Flow<List<String>> = flowOf(emptyList())
