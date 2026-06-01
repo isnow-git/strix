@@ -8,8 +8,10 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
+import android.view.LayoutInflater
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.aspectRatio
@@ -55,9 +57,12 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.graphics.Color
@@ -67,6 +72,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.util.lerp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.paging.LoadState
@@ -93,7 +99,6 @@ import kotlinx.coroutines.delay
  */
 @Composable
 fun ChannelsScreen(
-    onPlay: (Channel) -> Unit,
     onChangeSource: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: ChannelsViewModel = hiltViewModel(),
@@ -108,7 +113,20 @@ fun ChannelsScreen(
 
     val previewPlayer = remember { viewModel.createPreviewPlayer() }
     var showVideo by remember { mutableStateOf(false) }
+    var expanded by remember { mutableStateOf(false) }
+    var playerChannelId by remember { mutableStateOf<String?>(null) }
+    val fullscreenFocus = remember { FocusRequester() }
     val lifecycleOwner = LocalLifecycleOwner.current
+
+    // Plays a channel on the shared preview player (no-op if already playing it).
+    fun playOn(channel: Channel) {
+        if (playerChannelId == channel.id.value) return
+        showVideo = false
+        previewPlayer.setMediaItem(MediaItem.fromUri(channel.streamUrl))
+        previewPlayer.prepare()
+        previewPlayer.playWhenReady = true
+        playerChannelId = channel.id.value
+    }
 
     DisposableEffect(previewPlayer) {
         val listener =
@@ -141,22 +159,23 @@ fun ChannelsScreen(
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
-    // After a longer pause on the focused channel, play its stream (muted) in the
-    // preview; the logo shows until the video is ready, then it fades in.
+    // After a pause on the focused channel, play its stream in the preview. While
+    // expanded, the fullscreen view drives the player instead.
     LaunchedEffect(previewChannel) {
+        if (expanded) return@LaunchedEffect
         showVideo = false
         previewPlayer.stop()
+        playerChannelId = null
         val channel = previewChannel ?: return@LaunchedEffect
         delay(PREVIEW_VIDEO_DELAY_MS)
-        previewPlayer.setMediaItem(MediaItem.fromUri(channel.streamUrl))
-        previewPlayer.prepare()
-        previewPlayer.playWhenReady = true
+        playOn(channel)
     }
 
     StrixTheme {
+        Box(modifier = modifier.fillMaxSize()) {
         Column(
             modifier =
-                modifier
+                Modifier
                     .fillMaxSize()
                     .background(Brush.verticalGradient(listOf(BACKGROUND_TOP, BACKGROUND)))
                     .padding(horizontal = 40.dp, vertical = 28.dp),
@@ -218,7 +237,10 @@ fun ChannelsScreen(
                                         onFocused = {
                                             viewModel.onIntent(ChannelsIntent.ChannelFocused(channel))
                                         },
-                                        onClick = { onPlay(channel) },
+                                        onClick = {
+                                            playOn(channel)
+                                            expanded = true
+                                        },
                                     )
                                 }
                             }
@@ -234,11 +256,94 @@ fun ChannelsScreen(
                         epg = previewEpg,
                         imageLoader = imageLoader,
                         player = previewPlayer,
-                        showVideo = showVideo,
+                        showVideo = showVideo && !expanded,
                         modifier = Modifier.width(PREVIEW_WIDTH.dp).fillMaxHeight().padding(start = 28.dp),
                     )
                 }
             }
+        }
+
+            // Fullscreen player overlay: expands the running preview, no re-buffer.
+            val expandProgress by animateFloatAsState(
+                targetValue = if (expanded) 1f else 0f,
+                animationSpec = tween(durationMillis = 320, easing = LinearEasing),
+                label = "expand",
+            )
+            if (expandProgress > 0.001f) {
+                FullscreenPlayer(
+                    player = previewPlayer,
+                    channel = previewChannel,
+                    ready = showVideo,
+                    progress = expandProgress,
+                    focus = fullscreenFocus,
+                    onCollapse = { expanded = false },
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun FullscreenPlayer(
+    player: ExoPlayer,
+    channel: Channel?,
+    ready: Boolean,
+    progress: Float,
+    focus: FocusRequester,
+    onCollapse: () -> Unit,
+) {
+    LaunchedEffect(Unit) { runCatching { focus.requestFocus() } }
+    Box(
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .graphicsLayer {
+                    // Grow out of the preview panel's area (upper-right) to fullscreen.
+                    val s = lerp(0.4f, 1f, progress)
+                    scaleX = s
+                    scaleY = s
+                    alpha = progress
+                    transformOrigin = TransformOrigin(0.82f, 0.32f)
+                }.background(Color.Black)
+                .focusRequester(focus)
+                .focusable()
+                .onKeyEvent { event ->
+                    if (event.type != KeyEventType.KeyDown) return@onKeyEvent false
+                    when (event.key) {
+                        Key.Back -> { onCollapse(); true }
+                        Key.DirectionCenter, Key.Enter -> {
+                            if (player.isPlaying) player.pause() else player.play()
+                            true
+                        }
+                        else -> false
+                    }
+                },
+    ) {
+        AndroidView(
+            modifier = Modifier.fillMaxSize(),
+            factory = { context ->
+                (LayoutInflater.from(context).inflate(R.layout.strix_player_view, null) as PlayerView).apply {
+                    resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
+                    setPlayer(player)
+                }
+            },
+            update = { it.setPlayer(player) },
+        )
+        if (!ready) {
+            Text(
+                text = "Chargement…",
+                color = MUTED,
+                fontSize = 14.sp,
+                modifier = Modifier.align(Alignment.TopStart).padding(28.dp),
+            )
+        }
+        channel?.let {
+            Text(
+                text = it.displayName.ifBlank { it.name },
+                color = Color.White,
+                fontSize = 18.sp,
+                modifier = Modifier.align(Alignment.TopCenter).padding(28.dp),
+            )
         }
     }
 }
@@ -288,8 +393,7 @@ private fun PreviewPanel(
                 AndroidView(
                     modifier = Modifier.fillMaxSize(),
                     factory = { context ->
-                        PlayerView(context).apply {
-                            useController = false
+                        (LayoutInflater.from(context).inflate(R.layout.strix_player_view, null) as PlayerView).apply {
                             resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
                             setPlayer(player)
                         }

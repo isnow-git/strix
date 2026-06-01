@@ -42,7 +42,6 @@ fun StrixNavHost() {
             }
             composable(Routes.CHANNELS) {
                 ChannelsScreen(
-                    onPlay = { channel -> navController.navigate(Routes.player(channel.id.value)) },
                     onChangeSource = { navController.navigate(Routes.ONBOARDING) },
                 )
             }
