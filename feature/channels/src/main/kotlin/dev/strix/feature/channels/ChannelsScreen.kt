@@ -1,6 +1,7 @@
 package dev.strix.feature.channels
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -305,7 +306,8 @@ private fun LogoBox(
             Modifier
                 .size(LOGO_SIZE.dp)
                 .clip(RoundedCornerShape(8.dp))
-                .background(LOGO_BG),
+                .background(LOGO_BG)
+                .border(1.dp, LOGO_BORDER, RoundedCornerShape(8.dp)),
         contentAlignment = Alignment.Center,
     ) {
         if (channel.logoUrl != null) {
@@ -342,6 +344,7 @@ private val BACKGROUND = Color(0xFF0B0B0F)
 private val BACKGROUND_TOP = Color(0xFF15151F)
 private val PRIMARY = Color(0xFF6C8CFF)
 private val ON_PRIMARY = Color(0xFF0B0B0F)
-private val LOGO_BG = Color(0x14FFFFFF)
+private val LOGO_BG = Color(0x2EFFFFFF)
+private val LOGO_BORDER = Color(0x40FFFFFF)
 private val MUTED = Color(0xFFB6B6C2)
 private val ERROR_RED = Color(0xFFFF6B6B)

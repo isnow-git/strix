@@ -13,13 +13,13 @@ enum class ChannelCategory(
     Kids("Enfants"),
     Music("Musique"),
     Docs("Docs"),
-    Entertainment("Divertissement"),
     Adult("Adulte"),
-    General("Autres"),
+    General("Général"),
     ;
 
     companion object {
-        // iptv-org category id -> our canonical bucket.
+        // iptv-org category id -> our canonical bucket. Generalist/entertainment
+        // buckets all fold into Général (kept deliberately broad).
         private val iptvMap: Map<String, ChannelCategory> =
             mapOf(
                 "sports" to Sport,
@@ -36,20 +36,20 @@ enum class ChannelCategory(
                 "education" to Docs,
                 "nature" to Docs,
                 "xxx" to Adult,
-                "entertainment" to Entertainment,
-                "comedy" to Entertainment,
-                "general" to Entertainment,
-                "culture" to Entertainment,
-                "lifestyle" to Entertainment,
-                "cooking" to Entertainment,
-                "travel" to Entertainment,
-                "public" to Entertainment,
-                "relax" to Entertainment,
+                "entertainment" to General,
+                "general" to General,
+                "comedy" to General,
+                "culture" to General,
+                "lifestyle" to General,
+                "cooking" to General,
+                "travel" to General,
+                "public" to General,
+                "relax" to General,
             )
 
         // Most specific buckets win when a channel has several iptv-org categories.
         private val priority =
-            listOf(Adult, Sport, News, Kids, Docs, Music, Movies, Series, Entertainment)
+            listOf(Adult, Sport, News, Kids, Docs, Music, Movies, Series, General)
 
         /** Maps iptv-org categories to a canonical category, or null if none apply. */
         fun fromIptvOrg(categories: List<String>): ChannelCategory? {
@@ -60,9 +60,9 @@ enum class ChannelCategory(
 }
 
 /**
- * Classifies a channel into one canonical [ChannelCategory] from its name and the
- * provider's (messy) category, by keyword. Order matters: more specific buckets
- * are tested first. Pure and allocation-light; runs once per channel at import.
+ * Fallback classifier from name + provider category, used only when iptv-org has
+ * no match. Keyword lists are kept tight (strong, unambiguous terms) so an
+ * unknown channel lands in [ChannelCategory.General] rather than a wrong bucket.
  */
 object ChannelClassifier {
     private fun keywords(vararg words: String) = words.toList()
@@ -70,20 +70,18 @@ object ChannelClassifier {
     // Tested in order; first match wins.
     private val rules: List<Pair<ChannelCategory, List<String>>> =
         listOf(
-            ChannelCategory.Adult to keywords("xxx", "adult", "adulte", "porn", "18+"),
+            ChannelCategory.Adult to keywords("xxx", "porn", "adult", "adulte", "18+"),
             ChannelCategory.Kids to
-                keywords("kids", "enfant", "junior", "disney", "boomerang", "gulli", "cartoon", "nick", "baby"),
+                keywords("disney junior", "boomerang", "gulli", "cartoon", "nickelodeon", "piwi", "tiji", "junior"),
             ChannelCategory.Sport to
-                keywords("sport", "bein", "foot", "rugby", "tennis", "ufc", "espn", "eurosport", "dazn", "match", "nba"),
+                keywords("sport", "bein", "eurosport", "espn", "dazn", "rmc sport", "foot", "rugby", "nba", "ufc"),
             ChannelCategory.News to
-                keywords("news", "info", "actu", "bfm", "lci", "cnn", "i24", "franceinfo", "euronews", "journal"),
+                keywords("bfm", "lci", "cnn", "franceinfo", "france info", "euronews", "i24", "news", "actualit"),
             ChannelCategory.Docs to
-                keywords("doc", "discovery", "natgeo", "national geo", "histoire", "history", "planete", "science", "nature"),
-            ChannelCategory.Music to keywords("music", "musique", "mtv", "trace", "clubbing", "hits", "radio"),
-            ChannelCategory.Movies to keywords("cine", "ciné", "film", "movie", "cinema", "ocs", "action", "thriller"),
-            ChannelCategory.Series to keywords("serie", "série", "series", "tv show", "novela"),
-            ChannelCategory.Entertainment to
-                keywords("divertissement", "entertainment", "tf1", "m6", "w9", "tmc", "general", "généraliste", "tnt"),
+                keywords("discovery", "national geo", "natgeo", "histoire", "planete", "rmc decouverte", "ushuaia"),
+            ChannelCategory.Music to keywords("mtv", "trace", "vevo", "clubbing", "stingray", "musique", "music "),
+            ChannelCategory.Movies to keywords("cinema", "cine+", "cine +", "ocs", "tcm", "paramount", "action"),
+            ChannelCategory.Series to keywords("series", "warner tv", "novela"),
         )
 
     fun classify(

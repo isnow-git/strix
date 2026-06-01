@@ -26,8 +26,8 @@ class ChannelClassifierTest {
 
     @Test
     fun `iptv-org categories map to canonical, most specific wins`() {
-        assertThat(ChannelCategory.fromIptvOrg(listOf("entertainment"))).isEqualTo(ChannelCategory.Entertainment)
-        assertThat(ChannelCategory.fromIptvOrg(listOf("general"))).isEqualTo(ChannelCategory.Entertainment)
+        assertThat(ChannelCategory.fromIptvOrg(listOf("entertainment"))).isEqualTo(ChannelCategory.General)
+        assertThat(ChannelCategory.fromIptvOrg(listOf("general"))).isEqualTo(ChannelCategory.General)
         assertThat(ChannelCategory.fromIptvOrg(listOf("entertainment", "sports"))).isEqualTo(ChannelCategory.Sport)
         assertThat(ChannelCategory.fromIptvOrg(listOf("unknownX"))).isNull()
     }
