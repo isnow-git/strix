@@ -42,6 +42,12 @@ object ChannelQuality {
     private val spaces = Regex("""\s+""")
     private val nonAlphaNum = Regex("""[^a-z0-9]""")
 
+    // Leading country code + separator, e.g. "FR - ", "BE | ", "UK: ".
+    private val countryPrefix = Regex("""^\s*[A-Za-z]{2,3}\s*[-|:>·•]+\s*""")
+
+    // Symbols that aren't part of a real name (◉ ● ▸ …); keep letters, digits, + & ' -.
+    private val junkSymbols = Regex("""[^\p{L}\p{N}\s+&'\-]""")
+
     // Time-shift markers: "+1", "+6h", "+ 2 h" (a number after a plus).
     private val timeshiftNum = Regex("""\+\s?(\d{1,2})\s?h?\b""", RegexOption.IGNORE_CASE)
 
@@ -93,6 +99,35 @@ object ChannelQuality {
             epgChannelId?.trim()?.takeIf { it.isNotEmpty() }?.let { "e:${it.lowercase()}" }
                 ?: "n:${info.baseKey}"
         return "$base|ts${info.timeshift}"
+    }
+
+    /**
+     * A clean display name: strips the country prefix, quality, codec and junk
+     * symbols so a row reads "TF1" instead of "FR - TF1 HEVC". A time-shift is
+     * kept (as " +1") so a delayed feed stays distinguishable from the live one.
+     */
+    fun displayName(name: String): String {
+        val info = parse(name)
+        var s = countryPrefix.replace(name, "")
+        for (token in tokens) s = token.regex.replace(s, " ")
+        s = timeshiftNum.replace(s, " ")
+        s = timeshiftWord.replace(s, " ")
+        s = codecs.replace(s, " ")
+        s = junkSymbols.replace(s, " ")
+        s = spaces.replace(s, " ").trim().trim('-', '|', ':', ' ')
+        val clean =
+            when {
+                info.timeshift > 0 -> "$s +${info.timeshift}"
+                info.timeshift == UNKNOWN_SHIFT -> "$s (différé)"
+                else -> s
+            }
+        return clean.ifBlank { name }
+    }
+
+    /** Strips leading "#"/separator noise from a category name. */
+    fun cleanCategory(group: String?): String? {
+        val cleaned = group?.trimStart('#', '*', ' ', '-', '|', '·', '•')?.trim()
+        return cleaned?.ifEmpty { null }
     }
 
     const val UNKNOWN_SHIFT = -1

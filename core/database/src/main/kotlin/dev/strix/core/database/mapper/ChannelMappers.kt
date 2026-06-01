@@ -20,6 +20,7 @@ fun ChannelEntity.toDomain(): Channel =
         group = groupTitle,
         number = number,
         qualityLabel = qualityLabel,
+        displayName = ChannelQuality.displayName(name),
     )
 
 /**
@@ -38,7 +39,7 @@ fun Channel.toEntity(sortIndex: Int): ChannelEntity {
         name = name,
         streamUrl = streamUrl,
         logoUrl = logoUrl,
-        groupTitle = group,
+        groupTitle = ChannelQuality.cleanCategory(group),
         number = number,
         sortIndex = sortIndex,
         baseKey = ChannelQuality.groupKey(epgChannelId, quality),

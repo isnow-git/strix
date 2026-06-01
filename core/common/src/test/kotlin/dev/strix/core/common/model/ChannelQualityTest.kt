@@ -69,4 +69,25 @@ class ChannelQualityTest {
         assertThat(ChannelQuality.groupKey("TF1.fr", live))
             .isNotEqualTo(ChannelQuality.groupKey("TF1.fr", plus1))
     }
+
+    @Test
+    fun `display name strips country prefix, quality and junk`() {
+        assertThat(ChannelQuality.displayName("FR - TF1 HEVC")).isEqualTo("TF1")
+        assertThat(ChannelQuality.displayName("FR - TF1 FHD ◉")).isEqualTo("TF1")
+        assertThat(ChannelQuality.displayName("BE | TF1 HD")).isEqualTo("TF1")
+        assertThat(ChannelQuality.displayName("FR - TF1 FILMS & SÉRIES HEVC"))
+            .isEqualTo("TF1 FILMS & SÉRIES")
+    }
+
+    @Test
+    fun `display name keeps the time-shift marker`() {
+        assertThat(ChannelQuality.displayName("FR - TF1 +1 FHD")).isEqualTo("TF1 +1")
+    }
+
+    @Test
+    fun `clean category strips leading hashes`() {
+        assertThat(ChannelQuality.cleanCategory("### FR SPORT")).isEqualTo("FR SPORT")
+        assertThat(ChannelQuality.cleanCategory("##### Adultes")).isEqualTo("Adultes")
+        assertThat(ChannelQuality.cleanCategory("News")).isEqualTo("News")
+    }
 }

@@ -18,8 +18,9 @@ class ChannelMappersTest {
 
     @Test
     fun `entity round-trips back to the same domain channel`() {
+        // displayName is derived on read; everything else round-trips unchanged.
         val restored = channel.toEntity(sortIndex = 5).toDomain()
-        assertThat(restored).isEqualTo(channel)
+        assertThat(restored).isEqualTo(channel.copy(displayName = "BBC One"))
     }
 
     @Test
@@ -47,6 +48,7 @@ class ChannelMappersTest {
                 name = "X",
                 streamUrl = "http://x.test/x",
             )
-        assertThat(minimal.toEntity(sortIndex = 0).toDomain()).isEqualTo(minimal)
+        assertThat(minimal.toEntity(sortIndex = 0).toDomain())
+            .isEqualTo(minimal.copy(displayName = "X"))
     }
 }

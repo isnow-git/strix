@@ -299,7 +299,13 @@ fun PlayerScreen(
             modifier = Modifier.align(Alignment.TopCenter).padding(28.dp),
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                (current ?: channel)?.let { Text(text = it.name, color = Color.White, fontSize = 18.sp) }
+                (current ?: channel)?.let {
+                    Text(
+                        text = it.displayName.ifBlank { it.name },
+                        color = Color.White,
+                        fontSize = 18.sp,
+                    )
+                }
                 if (variants.size > 1) {
                     // ◂ HD ▸ hints that left/right cycle the quality.
                     Text(
@@ -329,7 +335,7 @@ fun PlayerScreen(
             modifier = Modifier.align(Alignment.Center).padding(24.dp),
         ) {
             ErrorPanel(
-                channelName = channel?.name,
+                channelName = channel?.let { it.displayName.ifBlank { it.name } },
                 message = error.orEmpty(),
                 retryFocus = retryFocus,
                 onRetry = ::play,

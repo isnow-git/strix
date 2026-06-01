@@ -21,4 +21,6 @@ data class Channel(
     val qualityLabel: String? = null,
     /** Provider EPG id (Xtream `epg_channel_id` / M3U `tvg-id`), for grouping/EPG. */
     val epgChannelId: String? = null,
+    /** Cleaned name for display (country/quality/junk stripped); falls back to [name]. */
+    val displayName: String = "",
 )

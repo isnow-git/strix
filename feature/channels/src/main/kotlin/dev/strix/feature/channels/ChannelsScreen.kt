@@ -266,7 +266,12 @@ private fun ChannelRow(
         ) {
             LogoBox(channel = channel, imageLoader = imageLoader)
             Column(modifier = Modifier.weight(1f)) {
-                Text(text = channel.name, color = Color.White, fontSize = 16.sp, maxLines = 1)
+                Text(
+                    text = channel.displayName.ifBlank { channel.name },
+                    color = Color.White,
+                    fontSize = 16.sp,
+                    maxLines = 1,
+                )
                 channel.group?.let { group ->
                     Text(text = group, color = MUTED, fontSize = 12.sp, maxLines = 1)
                 }
@@ -301,7 +306,7 @@ private fun LogoBox(
             )
         } else {
             Text(
-                text = channel.name.take(1).uppercase(),
+                text = channel.displayName.ifBlank { channel.name }.take(1).uppercase(),
                 color = Color.White,
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold,
