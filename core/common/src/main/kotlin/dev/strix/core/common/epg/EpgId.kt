@@ -2,6 +2,11 @@ package dev.strix.core.common.epg
 
 import java.text.Normalizer
 
+// Compiled once: this runs per XMLTV programme during a guide ingest (tens of
+// thousands of calls), so building a fresh Regex per call would dominate the cost.
+private val combiningMarks = Regex("""\p{M}+""")
+private val nonAlphaNum = Regex("""[^a-z0-9]""")
+
 /**
  * Normalizes an EPG/XMLTV channel id for matching across sources, whose ids
  * differ cosmetically (e.g. provider `TF1SeriesFilms.fr` vs XMLTV
@@ -11,6 +16,6 @@ import java.text.Normalizer
 fun normalizeEpgId(id: String): String =
     Normalizer
         .normalize(id, Normalizer.Form.NFD)
-        .replace(Regex("""\p{M}+"""), "")
+        .replace(combiningMarks, "")
         .lowercase()
-        .replace(Regex("""[^a-z0-9]"""), "")
+        .replace(nonAlphaNum, "")

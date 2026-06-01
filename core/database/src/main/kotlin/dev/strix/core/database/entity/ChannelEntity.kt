@@ -13,13 +13,13 @@ import androidx.room.PrimaryKey
  *   index, fastest lookups and the natural join key for paging).
  * - `channelId` carries a unique index for upsert-by-id during a refresh.
  * - `sortIndex` preserves playlist order so list queries never sort at runtime.
- * - `groupTitle` is indexed for fast group filtering.
+ * - Only columns an actual query filters/joins on are indexed: every extra index
+ *   is dead weight on the import write path (thousands of inserts per refresh).
  */
 @Entity(
     tableName = "channels",
     indices = [
         Index(value = ["channelId"], unique = true),
-        Index(value = ["groupTitle"]),
         Index(value = ["sortIndex"]),
         Index(value = ["baseKey"]),
         Index(value = ["isPrimary"]),
@@ -33,6 +33,8 @@ data class ChannelEntity(
     val rowid: Long = 0,
     val channelId: String,
     val name: String,
+    /** Cleaned name for display (country/quality/junk stripped), computed at import. */
+    val displayName: String,
     val streamUrl: String,
     val logoUrl: String?,
     val groupTitle: String?,

@@ -59,47 +59,65 @@ enum class ChannelCategory(
     }
 }
 
+// Compiled once; reused for every channel classified during an import.
+private val diacritics = Regex("""\p{M}+""")
+
+private fun foldDiacritics(value: String): String =
+    Normalizer
+        .normalize(value, Normalizer.Form.NFD)
+        .replace(diacritics, "")
+        .lowercase()
+
 /**
  * Fallback classifier from name + provider category, used only when iptv-org has
  * no match. Keyword lists are kept tight (strong, unambiguous terms) so an
  * unknown channel lands in [ChannelCategory.General] rather than a wrong bucket.
  */
 object ChannelClassifier {
-    private fun keywords(vararg words: String) = words.toList()
-
-    // Tested in order; first match wins.
+    // Keywords are diacritics-folded once at class load, not per channel: the
+    // rule table is constant, so normalizing it on every classify() call (once
+    // per unmatched channel, i.e. most of them) was pure waste.
     private val rules: List<Pair<ChannelCategory, List<String>>> =
         listOf(
-            ChannelCategory.Adult to keywords("xxx", "porn", "adult", "adulte", "18+"),
+            ChannelCategory.Adult to listOf("xxx", "porn", "adult", "adulte", "18+"),
             ChannelCategory.Kids to
-                keywords("disney junior", "boomerang", "gulli", "cartoon", "nickelodeon", "piwi", "tiji", "junior"),
+                listOf("disney junior", "boomerang", "gulli", "cartoon", "nickelodeon", "piwi", "tiji", "junior"),
             ChannelCategory.Sport to
-                keywords(
-                    "sport", "bein", "eurosport", "espn", "dazn", "rmc sport", "foot", "rugby",
-                    "nba", "ufc", "tennis", "roland garros", "wimbledon", "golf", "f1", "motogp",
+                listOf(
+                    "sport",
+                    "bein",
+                    "eurosport",
+                    "espn",
+                    "dazn",
+                    "rmc sport",
+                    "foot",
+                    "rugby",
+                    "nba",
+                    "ufc",
+                    "tennis",
+                    "roland garros",
+                    "wimbledon",
+                    "golf",
+                    "f1",
+                    "motogp",
                 ),
             ChannelCategory.News to
-                keywords("bfm", "lci", "cnn", "franceinfo", "france info", "euronews", "i24", "news", "actualit"),
+                listOf("bfm", "lci", "cnn", "franceinfo", "france info", "euronews", "i24", "news", "actualit"),
             ChannelCategory.Docs to
-                keywords("discovery", "national geo", "natgeo", "histoire", "planete", "rmc decouverte", "ushuaia"),
-            ChannelCategory.Music to keywords("mtv", "trace", "vevo", "clubbing", "stingray", "musique", "music "),
-            ChannelCategory.Movies to keywords("cinema", "cine+", "cine +", "ocs", "tcm", "paramount", "action"),
-            ChannelCategory.Series to keywords("series", "warner tv", "novela"),
-        )
+                listOf("discovery", "national geo", "natgeo", "histoire", "planete", "rmc decouverte", "ushuaia"),
+            ChannelCategory.Music to listOf("mtv", "trace", "vevo", "clubbing", "stingray", "musique", "music "),
+            ChannelCategory.Movies to listOf("cinema", "cine+", "cine +", "ocs", "tcm", "paramount", "action"),
+            ChannelCategory.Series to listOf("series", "warner tv", "novela"),
+        ).map { (category, words) -> category to words.map(::foldDiacritics) }
 
     fun classify(
         name: String,
         providerCategory: String?,
     ): ChannelCategory {
-        val haystack = normalize("${providerCategory.orEmpty()} $name")
-        return rules.firstOrNull { (_, words) -> words.any { haystack.contains(normalize(it)) } }
+        val haystack = foldDiacritics("${providerCategory.orEmpty()} $name")
+        return rules
+            .firstOrNull { (_, words) -> words.any { haystack.contains(it) } }
             ?.first
             ?: ChannelCategory.General
     }
-
-    private fun normalize(value: String): String =
-        Normalizer
-            .normalize(value, Normalizer.Form.NFD)
-            .replace(Regex("""\p{M}+"""), "")
-            .lowercase()
 }

@@ -21,7 +21,8 @@ fun ChannelEntity.toDomain(): Channel =
         group = groupTitle,
         number = number,
         qualityLabel = qualityLabel,
-        displayName = ChannelQuality.displayName(name),
+        // Read straight from the row: the (regex-heavy) clean-up ran once at import.
+        displayName = displayName,
         epgChannelId = epgChannelId,
     )
 
@@ -39,6 +40,8 @@ fun Channel.toEntity(sortIndex: Int): ChannelEntity {
     return ChannelEntity(
         channelId = id.value,
         name = name,
+        // Reuse the parsed quality so the name is only scanned once per import.
+        displayName = ChannelQuality.displayName(name, quality),
         streamUrl = streamUrl,
         logoUrl = logoUrl,
         groupTitle = ChannelQuality.cleanCategory(group),

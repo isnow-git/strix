@@ -66,7 +66,11 @@ object ChannelQuality {
         }
 
         val shift =
-            timeshiftNum.find(name)?.groupValues?.getOrNull(1)?.toIntOrNull()
+            timeshiftNum
+                .find(name)
+                ?.groupValues
+                ?.getOrNull(1)
+                ?.toIntOrNull()
                 ?: if (timeshiftWord.containsMatchIn(name)) UNKNOWN_SHIFT else 0
 
         var base = name
@@ -114,9 +118,14 @@ object ChannelQuality {
      * A clean display name: strips the country prefix, quality, codec and junk
      * symbols so a row reads "TF1" instead of "FR - TF1 HEVC". A time-shift is
      * kept (as " +1") so a delayed feed stays distinguishable from the live one.
+     *
+     * Computed once at import (stored on the row) — never on the scroll path.
+     * Pass an already-parsed [info] to avoid re-running [parse] on [name].
      */
-    fun displayName(name: String): String {
-        val info = parse(name)
+    fun displayName(
+        name: String,
+        info: QualityInfo = parse(name),
+    ): String {
         var s = countryPrefix.replace(name, "")
         for (token in tokens) s = token.regex.replace(s, " ")
         s = timeshiftNum.replace(s, " ")
