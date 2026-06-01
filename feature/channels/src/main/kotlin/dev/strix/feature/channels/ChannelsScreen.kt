@@ -283,12 +283,33 @@ private fun PreviewPanel(
                     .aspectRatio(16f / 9f)
                     .clip(RoundedCornerShape(16.dp)),
         ) {
-            // Logo behind, always opaque.
+            // Video behind, fit to 16:9; rendered only once ready so no stale frame.
+            if (showVideo) {
+                AndroidView(
+                    modifier = Modifier.fillMaxSize(),
+                    factory = { context ->
+                        PlayerView(context).apply {
+                            useController = false
+                            resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
+                            setPlayer(player)
+                        }
+                    },
+                    update = { it.setPlayer(player) },
+                )
+            }
+            // Solid logo block on top: covers instantly on change, then fades out
+            // as one (opaque background fused with the logo) to reveal the video.
+            val logoAlpha by animateFloatAsState(
+                targetValue = if (showVideo) 0f else 1f,
+                animationSpec = tween(durationMillis = if (showVideo) 900 else 0, easing = LinearEasing),
+                label = "previewLogo",
+            )
             Box(
                 modifier =
                     Modifier
                         .fillMaxSize()
-                        .background(LOGO_BG)
+                        .alpha(logoAlpha)
+                        .background(PREVIEW_LOGO_BG)
                         .border(1.dp, LOGO_BORDER, RoundedCornerShape(16.dp)),
                 contentAlignment = Alignment.Center,
             ) {
@@ -308,26 +329,6 @@ private fun PreviewPanel(
                         fontWeight = FontWeight.Bold,
                     )
                 }
-            }
-            // Video over the logo: fades in when ready, disappears instantly on
-            // change (rendered only while showing, so no stale frame).
-            val videoAlpha by animateFloatAsState(
-                targetValue = if (showVideo) 1f else 0f,
-                animationSpec = tween(durationMillis = if (showVideo) 700 else 0, easing = LinearEasing),
-                label = "previewVideo",
-            )
-            if (showVideo) {
-                AndroidView(
-                    modifier = Modifier.fillMaxSize().alpha(videoAlpha),
-                    factory = { context ->
-                        PlayerView(context).apply {
-                            useController = false
-                            resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
-                            setPlayer(player)
-                        }
-                    },
-                    update = { it.setPlayer(player) },
-                )
             }
         }
 
@@ -584,5 +585,6 @@ private val PRIMARY = Color(0xFF6C8CFF)
 private val ON_PRIMARY = Color(0xFF0B0B0F)
 private val LOGO_BG = Color(0x2EFFFFFF)
 private val LOGO_BORDER = Color(0x40FFFFFF)
+private val PREVIEW_LOGO_BG = Color(0xFF2C2C34)
 private val MUTED = Color(0xFFB6B6C2)
 private val ERROR_RED = Color(0xFFFF6B6B)
