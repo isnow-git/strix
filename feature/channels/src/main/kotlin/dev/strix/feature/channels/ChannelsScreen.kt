@@ -25,8 +25,15 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.layout.ContentScale
@@ -70,6 +77,7 @@ fun ChannelsScreen(
     val previewEpg by viewModel.previewEpg.collectAsStateWithLifecycle()
     val channels = viewModel.pagedChannels.collectAsLazyPagingItems()
     val imageLoader = rememberStrixImageLoader()
+    val searchFocus = remember { FocusRequester() }
 
     StrixTheme {
         Column(
@@ -82,6 +90,7 @@ fun ChannelsScreen(
             Header(
                 query = state.query,
                 count = channels.itemCount,
+                searchFocus = searchFocus,
                 onQueryChange = { viewModel.onIntent(ChannelsIntent.SearchChanged(it)) },
                 onChangeSource = onChangeSource,
             )
@@ -98,7 +107,21 @@ fun ChannelsScreen(
 
             val refreshing = channels.loadState.refresh is LoadState.Loading
             Row(modifier = Modifier.fillMaxSize().padding(top = 20.dp)) {
-                Box(modifier = Modifier.weight(0.62f).fillMaxSize()) {
+                Box(
+                    modifier =
+                        Modifier
+                            .weight(0.62f)
+                            .fillMaxSize()
+                            .onPreviewKeyEvent { event ->
+                                // Left from anywhere in the list jumps to search/filters.
+                                if (event.type == KeyEventType.KeyDown && event.key == Key.DirectionLeft) {
+                                    runCatching { searchFocus.requestFocus() }
+                                    true
+                                } else {
+                                    false
+                                }
+                            },
+                ) {
                     when {
                         channels.itemCount == 0 && refreshing -> CenterMessage("Chargement…")
                         channels.itemCount == 0 ->
@@ -208,6 +231,7 @@ private fun PreviewPanel(
 private fun Header(
     query: String,
     count: Int,
+    searchFocus: FocusRequester,
     onQueryChange: (String) -> Unit,
     onChangeSource: () -> Unit,
 ) {
@@ -224,7 +248,7 @@ private fun Header(
         SearchField(
             query = query,
             onQueryChange = onQueryChange,
-            modifier = Modifier.weight(1f),
+            modifier = Modifier.weight(1f).focusRequester(searchFocus),
         )
         GlassButton(label = "Changer la source", onClick = onChangeSource)
     }
