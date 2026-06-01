@@ -85,6 +85,20 @@ interface ChannelDao {
     @Query("SELECT * FROM channels WHERE isPrimary = 1 AND channelNumber = :number LIMIT 1")
     suspend fun findByNumber(number: Int): ChannelEntity?
 
+    /**
+     * 0-based position of [channelId] within its category's list (the same order
+     * [pagingSourceByCategory] uses), to anchor the paged list when zapping to a
+     * channel that is in the current category.
+     */
+    @Query(
+        "SELECT COUNT(*) FROM channels WHERE isPrimary = 1 AND category = :category " +
+            "AND sortIndex < (SELECT sortIndex FROM channels WHERE channelId = :channelId)",
+    )
+    suspend fun positionInCategory(
+        category: String,
+        channelId: String,
+    ): Int
+
     /** A live sibling of the same logical channel that has a provider EPG id. */
     @Query(
         "SELECT * FROM channels WHERE epgBaseKey = :epgBaseKey " +

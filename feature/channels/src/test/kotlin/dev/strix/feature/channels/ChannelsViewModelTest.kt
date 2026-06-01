@@ -34,6 +34,7 @@ class ChannelsViewModelTest {
             override fun pagedChannels(
                 query: String?,
                 category: String?,
+                anchorIndex: Int?,
             ): Flow<PagingData<Channel>> = flowOf(PagingData.empty())
 
             override fun categories(): Flow<List<String>> = flowOf(emptyList())
@@ -68,6 +69,11 @@ class ChannelsViewModelTest {
         override suspend fun variants(id: ChannelId): List<Channel> = emptyList()
 
         override suspend fun channelCount(): Int = 1
+
+        override suspend fun positionInCategory(
+            category: String,
+            id: ChannelId,
+        ): Int = 0
 
         override suspend fun refreshFrom(source: StreamSourceConfig): StrixResult<Int> = refreshResult
     }

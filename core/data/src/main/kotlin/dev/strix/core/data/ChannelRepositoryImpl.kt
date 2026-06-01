@@ -116,11 +116,16 @@ class ChannelRepositoryImpl
         override fun pagedChannels(
             query: String?,
             category: String?,
+            anchorIndex: Int?,
         ): Flow<PagingData<Channel>> {
             val match = query?.takeUnless { it.isBlank() }?.let(FtsQuery::prefixMatch)
             val group = category?.takeUnless { it.isBlank() }
+            // Start a few rows above the anchor so the target isn't glued to the top
+            // edge and has visible context above it.
+            val initialKey = anchorIndex?.let { (it - ANCHOR_PRELOAD).coerceAtLeast(0) }
             return Pager(
                 config = PagingConfig(pageSize = PAGE_SIZE, enablePlaceholders = false),
+                initialKey = initialKey,
                 pagingSourceFactory = {
                     when {
                         match != null -> dao.searchPagingSource(match)
@@ -130,6 +135,11 @@ class ChannelRepositoryImpl
                 },
             ).flow.map { pagingData -> pagingData.map { it.toDomain() } }
         }
+
+        override suspend fun positionInCategory(
+            category: String,
+            id: ChannelId,
+        ): Int = withContext(dispatchers.io) { dao.positionInCategory(category, id.value) }
 
         override fun categories(): Flow<List<String>> = dao.observeCategories()
 
@@ -206,5 +216,8 @@ class ChannelRepositoryImpl
         private companion object {
             const val PAGE_SIZE = 40
             const val MAX_FETCH_ATTEMPTS = 3
+
+            // Rows to keep loaded above a zapped-to anchor (visible context above it).
+            const val ANCHOR_PRELOAD = 4
         }
     }

@@ -25,6 +25,7 @@ fun ChannelEntity.toDomain(): Channel =
         // Read straight from the row: the (regex-heavy) clean-up ran once at import.
         displayName = displayName,
         epgChannelId = epgChannelId,
+        category = category,
     )
 
 /**

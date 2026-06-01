@@ -30,6 +30,12 @@ interface ChannelRepository {
     /** Number of channels currently stored; 0 means the catalogue needs importing. */
     suspend fun channelCount(): Int
 
+    /** 0-based position of channel [id] within [category]'s list, for anchoring paging. */
+    suspend fun positionInCategory(
+        category: String,
+        id: ChannelId,
+    ): Int
+
     /** The next channel in playlist order (for zapping), or `null` at the end. */
     suspend fun nextChannel(id: ChannelId): Channel?
 

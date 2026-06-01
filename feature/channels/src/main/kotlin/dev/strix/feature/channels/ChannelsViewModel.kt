@@ -72,14 +72,37 @@ class ChannelsViewModel
         @UnstableApi
         fun createPreviewPlayer(): ExoPlayer = playerFactory.create()
 
-        /** Resolves a typed keypad number to its channel (remote zapping), or null. */
-        suspend fun channelByNumber(number: Int): Channel? = channelRepository.channelByNumber(number)
+        /**
+         * Resolves a typed keypad number to its channel and prepares the list to
+         * land on it: if the channel isn't in the currently selected category, the
+         * view switches to "Toutes"; either way the paged list is re-anchored to the
+         * channel's row so only the window around it is loaded. Returns the target
+         * (or null if no channel has that number).
+         */
+        suspend fun resolveZap(number: Int): Channel? {
+            val target = channelRepository.channelByNumber(number) ?: return null
+            val current = selectedCategory.value
+            val leaveCategory = current != null && target.category != current
+            val newCategory = if (leaveCategory) null else current
+            val index =
+                if (newCategory == null) {
+                    (target.channelNumber - 1).coerceAtLeast(0)
+                } else {
+                    channelRepository.positionInCategory(newCategory, target.id)
+                }
+            if (newCategory != current) selectedCategory.value = newCategory
+            anchorIndex.value = index
+            return target
+        }
 
         private val query = MutableStateFlow("")
         private val refreshing = MutableStateFlow(false)
         private val error = MutableStateFlow<String?>(null)
         private val focusedChannel = MutableStateFlow<Channel?>(null)
         private val selectedCategory = MutableStateFlow<String?>(null)
+
+        // Row to start the paged list on (null = top); set when zapping to a channel.
+        private val anchorIndex = MutableStateFlow<Int?>(null)
 
         val uiState: StateFlow<ChannelsUiState> =
             combine(query, refreshing, error, selectedCategory) { query, refreshing, error, category ->
@@ -109,9 +132,10 @@ class ChannelsViewModel
             combine(
                 query.debounce(SEARCH_DEBOUNCE_MS).distinctUntilChanged(),
                 selectedCategory,
-            ) { query, category -> query to category }
-                .flatMapLatest { (query, category) ->
-                    pagingRepository.pagedChannels(query.ifBlank { null }, category)
+                anchorIndex,
+            ) { query, category, anchor -> Triple(query, category, anchor) }
+                .flatMapLatest { (query, category, anchor) ->
+                    pagingRepository.pagedChannels(query.ifBlank { null }, category, anchor)
                 }.cachedIn(viewModelScope)
 
         val playbackTarget: Flow<Channel> =
@@ -138,11 +162,13 @@ class ChannelsViewModel
             when (intent) {
                 is ChannelsIntent.SearchChanged -> {
                     query.value = intent.query
+                    anchorIndex.value = null
                     if (intent.query.isNotBlank()) selectedCategory.value = null
                 }
                 is ChannelsIntent.CategorySelected -> {
                     selectedCategory.value = intent.category
                     query.value = ""
+                    anchorIndex.value = null
                 }
                 is ChannelsIntent.ChannelFocused -> focusedChannel.value = intent.channel
                 is ChannelsIntent.Refresh -> refresh(intent.source)

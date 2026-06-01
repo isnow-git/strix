@@ -29,6 +29,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -130,10 +131,24 @@ fun ChannelsScreen(
     // Remote keypad: digits typed accumulate here and zap to that channel number.
     var numberInput by remember { mutableStateOf("") }
     var searchFocused by remember { mutableStateOf(false) }
+    // Set when the open was a keypad zap: the list was re-anchored, so on return we
+    // snap to the top of the new window before focusing the target.
+    var pendingZapFocus by remember { mutableStateOf(false) }
+    val listState = rememberLazyListState()
 
-    // Return focus to the channel we were watching after leaving fullscreen.
+    // Return focus to the channel we were watching after leaving fullscreen. After a
+    // zap the row may still be loading, so retry briefly until it attaches.
     LaunchedEffect(expanded) {
-        if (!expanded && focusedChannelId != null) runCatching { rowFocus.requestFocus() }
+        if (expanded || focusedChannelId == null) return@LaunchedEffect
+        if (pendingZapFocus) {
+            runCatching { listState.scrollToItem(0) }
+            pendingZapFocus = false
+        }
+        var tries = 0
+        while (tries < FOCUS_RETRIES && runCatching { rowFocus.requestFocus() }.isFailure) {
+            delay(FOCUS_RETRY_MS)
+            tries++
+        }
     }
     var slotRect by remember { mutableStateOf(Rect.Zero) }
     var rootWidth by remember { mutableIntStateOf(0) }
@@ -213,12 +228,15 @@ fun ChannelsScreen(
         delay(NUMBER_COMMIT_MS)
         val number = numberInput.toIntOrNull()
         numberInput = ""
-        val target = number?.let { viewModel.channelByNumber(it) } ?: return@LaunchedEffect
+        // resolveZap also re-anchors the paged list (and switches to "Toutes" if the
+        // channel isn't in the current category) so it lands on the target on return.
+        val target = number?.let { viewModel.resolveZap(it) } ?: return@LaunchedEffect
         // Keep the list/preview state in sync so returning from fullscreen is coherent.
         // The preview LaunchedEffect above is guarded by `expanded`, so this won't
         // trigger a stop/restart of the stream we're about to play.
         viewModel.onIntent(ChannelsIntent.ChannelFocused(target))
         focusedChannelId = target.id.value
+        pendingZapFocus = true
         playOn(target)
         expanded = true
     }
@@ -292,6 +310,7 @@ fun ChannelsScreen(
                                 CenterMessage("Aucune chaîne. Change la source pour en importer.")
                             else ->
                                 LazyColumn(
+                                    state = listState,
                                     verticalArrangement = Arrangement.spacedBy(6.dp),
                                     contentPadding = PaddingValues(bottom = 56.dp),
                                 ) {
@@ -803,6 +822,11 @@ private const val PREVIEW_RADIUS = 16f
 // cap the number of digits a channel number can have.
 private const val NUMBER_COMMIT_MS = 1_500L
 private const val MAX_NUMBER_DIGITS = 4
+
+// Returning from a zap, retry focusing the target row while its page finishes
+// loading (≈1s budget).
+private const val FOCUS_RETRIES = 40
+private const val FOCUS_RETRY_MS = 25L
 
 private val BACKGROUND = Color(0xFF0B0B0F)
 private val BACKGROUND_TOP = Color(0xFF15151F)
