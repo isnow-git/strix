@@ -5,6 +5,7 @@ import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.kotlin.dsl.configure
 import org.gradle.kotlin.dsl.dependencies
+import org.jetbrains.kotlin.compose.compiler.gradle.ComposeCompilerGradlePluginExtension
 
 /**
  * Enables Jetpack Compose + the Kotlin compose compiler plugin and wires the
@@ -14,6 +15,14 @@ import org.gradle.kotlin.dsl.dependencies
 class AndroidComposeConventionPlugin : Plugin<Project> {
     override fun apply(target: Project) = with(target) {
         pluginManager.apply("org.jetbrains.kotlin.plugin.compose")
+
+        // Mark the pure-Kotlin domain models stable for Compose (they can't be
+        // inferred because :core:common isn't processed by the Compose compiler).
+        extensions.configure<ComposeCompilerGradlePluginExtension> {
+            stabilityConfigurationFiles.add(
+                rootProject.layout.projectDirectory.file("config/compose/stability_config.conf"),
+            )
+        }
 
         // AGP registers the extension under the concrete type (ApplicationExtension
         // or LibraryExtension), not CommonExtension, so we resolve by the applied

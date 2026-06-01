@@ -7,8 +7,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.getSystemService
 import coil.ImageLoader
+import coil.disk.DiskCache
 import coil.imageLoader
 import coil.memory.MemoryCache
+import kotlinx.coroutines.Dispatchers
 
 /**
  * Builds the app-wide Coil [ImageLoader] with a bitmap memory cache sized from
@@ -30,7 +32,20 @@ fun strixImageLoader(context: Context): ImageLoader {
                 .Builder(context)
                 .maxSizeBytes(cacheBytes)
                 .build()
-        }.allowRgb565(true)
+        }
+        // Persist decoded logos so scrolling back through thousands of channels
+        // doesn't re-hit the network — the dominant scroll cost on first pass.
+        .diskCache {
+            DiskCache
+                .Builder()
+                .directory(context.cacheDir.resolve("strix_logos"))
+                .maxSizeBytes(LOGO_DISK_CACHE_BYTES)
+                .build()
+        }
+        // Cap concurrent decodes so a fast D-pad sweep can't flood the low-RAM TV
+        // with bitmap work and stutter the list.
+        .decoderDispatcher(Dispatchers.IO.limitedParallelism(MAX_DECODE_PARALLELISM))
+        .allowRgb565(true)
         .crossfade(false)
         .build()
 }
@@ -48,3 +63,5 @@ fun rememberStrixImageLoader(): ImageLoader {
 }
 
 private const val DEFAULT_MEMORY_CLASS_MB = 64
+private const val LOGO_DISK_CACHE_BYTES = 48L * 1024 * 1024
+private const val MAX_DECODE_PARALLELISM = 3

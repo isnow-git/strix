@@ -23,6 +23,7 @@ dependencies {
     // via the root `plugins {}` block (apply false), so compileOnly is enough.
     compileOnly(libs.android.gradlePlugin)
     compileOnly(libs.kotlin.gradlePlugin)
+    compileOnly(libs.compose.gradlePlugin)
     compileOnly(libs.ksp.gradlePlugin)
     // ktlint / detekt are NOT declared at the root, so the convention plugin must
     // carry them onto the classpath itself — hence implementation, not compileOnly.

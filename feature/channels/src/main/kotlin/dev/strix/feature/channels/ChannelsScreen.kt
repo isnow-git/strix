@@ -93,7 +93,6 @@ import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
 import androidx.paging.LoadState
 import androidx.paging.compose.collectAsLazyPagingItems
-import androidx.paging.compose.itemContentType
 import androidx.paging.compose.itemKey
 import androidx.tv.material3.ClickableSurfaceDefaults
 import androidx.tv.material3.Surface
@@ -176,18 +175,6 @@ fun ChannelsScreen(
     var slotRect by remember { mutableStateOf(Rect.Zero) }
     var rootWidth by remember { mutableIntStateOf(0) }
     var rootHeight by remember { mutableIntStateOf(0) }
-    // One player view animates its bounds from the preview slot to fullscreen.
-    val expandProgress by animateFloatAsState(
-        targetValue = if (expanded) 1f else 0f,
-        animationSpec = tween(durationMillis = 300, easing = LinearEasing),
-        label = "expand",
-    )
-    // Reveals the video over the logo once it's ready (independent of expanding).
-    val videoAlpha by animateFloatAsState(
-        targetValue = if (showVideo) 1f else 0f,
-        animationSpec = tween(durationMillis = if (showVideo) 400 else 0, easing = LinearEasing),
-        label = "videoReveal",
-    )
     val lifecycleOwner = LocalLifecycleOwner.current
 
     // Plays a channel on the shared preview player (no-op if already playing it).
@@ -340,13 +327,13 @@ fun ChannelsScreen(
                                     items(
                                         count = channels.itemCount,
                                         key = channels.itemKey { it.id.value },
-                                        contentType = channels.itemContentType { "channel" },
+                                        // Same content type for placeholder and real rows
+                                        // so the LazyColumn reuses the slot when a row loads.
+                                        contentType = { "channel" },
                                     ) { index ->
-                                        // Placeholder (not yet loaded): keep the row's
-                                        // height so scroll positions stay exact.
                                         val channel = channels[index]
                                         if (channel == null) {
-                                            Spacer(Modifier.fillMaxWidth().height(ROW_HEIGHT.dp))
+                                            ChannelRowSkeleton()
                                         } else {
                                             ChannelRow(
                                                 channel = channel,
@@ -383,39 +370,22 @@ fun ChannelsScreen(
                 }
             }
 
-            // Black scrim behind the player as it grows to fullscreen.
-            if (expandProgress > 0.001f) {
-                Box(modifier = Modifier.fillMaxSize().alpha(expandProgress).background(Color.Black))
-            }
-
-            // While the stream connects/buffers in fullscreen, show a spinner so a
-            // zap never looks dead (the video fades in once it's ready).
-            if (expanded && !showVideo) {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    LoadingSpinner()
-                }
-            }
-
-            // One player view: docked over the preview slot, animating its bounds to
-            // fullscreen on open. One surface throughout → no black flash, no jump.
-            // Renders while expanded even without a preview (keypad zap to an
-            // off-list channel), falling back to a full-screen origin so there's no
-            // jump from a stale slot.
-            if ((previewChannel != null || expanded) && rootWidth > 0) {
-                val fullRect = Rect(0f, 0f, rootWidth.toFloat(), rootHeight.toFloat())
-                val origin = if (slotRect != Rect.Zero) slotRect else fullRect
-                FloatingPlayer(
-                    player = previewPlayer,
-                    rect = lerpRect(origin, fullRect, expandProgress),
-                    cornerRadius = lerp(PREVIEW_RADIUS, 0f, expandProgress).dp,
-                    videoAlpha = videoAlpha,
-                    expanded = expanded,
-                    focus = fullscreenFocus,
-                    density = density,
-                    onBack = { expanded = false },
-                    onToggle = { if (previewPlayer.isPlaying) previewPlayer.pause() else previewPlayer.play() },
-                )
-            }
+            // Scrim + docked/fullscreen player + buffering spinner. Self-contained so
+            // the per-frame zoom animation recomposes only this subtree, not the whole
+            // screen (header, list, rail stay put).
+            FullscreenOverlay(
+                player = previewPlayer,
+                hasPreview = previewChannel != null,
+                expanded = expanded,
+                showVideo = showVideo,
+                slotRect = slotRect,
+                rootWidth = rootWidth,
+                rootHeight = rootHeight,
+                focus = fullscreenFocus,
+                density = density,
+                onBack = { expanded = false },
+                onToggle = { if (previewPlayer.isPlaying) previewPlayer.pause() else previewPlayer.play() },
+            )
 
             // Channel-number overlay: the digits being typed on the remote, bottom-right.
             if (numberInput.isNotEmpty()) {
@@ -458,6 +428,67 @@ private fun Key.digitChar(): Char? =
         Key.Nine, Key.NumPad9 -> '9'
         else -> null
     }
+
+@Composable
+private fun FullscreenOverlay(
+    player: ExoPlayer,
+    hasPreview: Boolean,
+    expanded: Boolean,
+    showVideo: Boolean,
+    slotRect: Rect,
+    rootWidth: Int,
+    rootHeight: Int,
+    focus: FocusRequester,
+    density: Density,
+    onBack: () -> Unit,
+    onToggle: () -> Unit,
+) {
+    // Per-frame animation state lives here, not in the parent, so the zoom only
+    // recomposes this subtree.
+    val expandProgress by animateFloatAsState(
+        targetValue = if (expanded) 1f else 0f,
+        animationSpec = tween(durationMillis = 300, easing = LinearEasing),
+        label = "expand",
+    )
+    val videoAlpha by animateFloatAsState(
+        targetValue = if (showVideo) 1f else 0f,
+        animationSpec = tween(durationMillis = if (showVideo) 400 else 0, easing = LinearEasing),
+        label = "videoReveal",
+    )
+
+    // Black scrim behind the player as it grows to fullscreen.
+    if (expandProgress > 0.001f) {
+        Box(modifier = Modifier.fillMaxSize().alpha(expandProgress).background(Color.Black))
+    }
+
+    // While the stream connects/buffers in fullscreen, show a spinner so a zap never
+    // looks dead (the video fades in once it's ready).
+    if (expanded && !showVideo) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            LoadingSpinner()
+        }
+    }
+
+    // One player view: docked over the preview slot, animating its bounds to
+    // fullscreen on open. One surface throughout → no black flash, no jump. Renders
+    // while expanded even without a preview (keypad zap to an off-list channel),
+    // falling back to a full-screen origin so there's no jump from a stale slot.
+    if ((hasPreview || expanded) && rootWidth > 0) {
+        val fullRect = Rect(0f, 0f, rootWidth.toFloat(), rootHeight.toFloat())
+        val origin = if (slotRect != Rect.Zero) slotRect else fullRect
+        FloatingPlayer(
+            player = player,
+            rect = lerpRect(origin, fullRect, expandProgress),
+            cornerRadius = lerp(PREVIEW_RADIUS, 0f, expandProgress).dp,
+            videoAlpha = videoAlpha,
+            expanded = expanded,
+            focus = focus,
+            density = density,
+            onBack = onBack,
+            onToggle = onToggle,
+        )
+    }
+}
 
 private fun lerpRect(
     a: Rect,
@@ -772,6 +803,25 @@ private fun SearchField(
             inner()
         },
     )
+}
+
+@Composable
+private fun ChannelRowSkeleton() {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
+        modifier = Modifier.fillMaxWidth().height(ROW_HEIGHT.dp).padding(horizontal = 14.dp),
+    ) {
+        Spacer(Modifier.width(44.dp))
+        Box(Modifier.size(LOGO_SIZE.dp).clip(RoundedCornerShape(8.dp)).background(LOGO_BG))
+        Box(
+            Modifier
+                .width(160.dp)
+                .height(14.dp)
+                .clip(RoundedCornerShape(4.dp))
+                .background(LOGO_BG),
+        )
+    }
 }
 
 @Composable
