@@ -123,8 +123,17 @@ class ChannelRepositoryImpl
             // scrollToItem() straight to any row (even far down) and Paging loads
             // only the window there. The null rows themselves are free (the window
             // is the only thing materialised).
+            //
+            // jumpThreshold makes a far jump invalidate and reload *once* at the
+            // target position, instead of appending every page in between (which on
+            // a ~10k list meant ~125 sequential queries — the multi-second stall).
             return Pager(
-                config = PagingConfig(pageSize = PAGE_SIZE, enablePlaceholders = true),
+                config =
+                    PagingConfig(
+                        pageSize = PAGE_SIZE,
+                        enablePlaceholders = true,
+                        jumpThreshold = PAGE_SIZE * JUMP_THRESHOLD_PAGES,
+                    ),
                 pagingSourceFactory = {
                     when {
                         match != null -> dao.searchPagingSource(match)
@@ -215,5 +224,9 @@ class ChannelRepositoryImpl
         private companion object {
             const val PAGE_SIZE = 40
             const val MAX_FETCH_ATTEMPTS = 3
+
+            // Big enough that ordinary row-by-row scrolling never triggers a jump,
+            // small enough that a keypad zap across the catalogue does.
+            const val JUMP_THRESHOLD_PAGES = 3
         }
     }

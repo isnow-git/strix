@@ -138,17 +138,20 @@ fun ChannelsScreen(
     val listState = rememberLazyListState()
 
     // Returning from fullscreen, land back on the channel. After a zap we jump the
-    // list to the target's row first; then focus it, retrying briefly while its
-    // page finishes loading.
+    // list to the target's row, wait for that row to actually load into the window
+    // (Paging fills it near-instantly thanks to the indexed query + jump), then
+    // focus it.
     LaunchedEffect(expanded) {
         if (expanded || focusedChannelId == null) return@LaunchedEffect
         val scrollTo = pendingScrollIndex
+        pendingScrollIndex = -1
         if (scrollTo >= 0) {
             runCatching { listState.scrollToItem((scrollTo - ZAP_CONTEXT_ROWS).coerceAtLeast(0)) }
-            pendingScrollIndex = -1
         }
         var tries = 0
-        while (tries < FOCUS_RETRIES && runCatching { rowFocus.requestFocus() }.isFailure) {
+        while (tries < FOCUS_RETRIES) {
+            val rowReady = scrollTo < 0 || (scrollTo < channels.itemCount && channels.peek(scrollTo) != null)
+            if (rowReady && runCatching { rowFocus.requestFocus() }.isSuccess) break
             delay(FOCUS_RETRY_MS)
             tries++
         }
@@ -833,8 +836,8 @@ private const val NUMBER_COMMIT_MS = 1_500L
 private const val MAX_NUMBER_DIGITS = 4
 
 // Returning from a zap, retry focusing the target row while its page finishes
-// loading (≈1s budget).
-private const val FOCUS_RETRIES = 40
+// loading (generous budget so a cold jump still lands).
+private const val FOCUS_RETRIES = 120
 private const val FOCUS_RETRY_MS = 25L
 
 // Channels kept visible above the zapped-to row so it isn't glued to the top edge.

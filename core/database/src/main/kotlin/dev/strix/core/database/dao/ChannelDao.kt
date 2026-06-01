@@ -22,13 +22,13 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface ChannelDao {
     /**
-     * One representative row per channel: adult hidden, generalist channels first,
-     * then playlist order.
+     * One representative row per channel, in fixed catalogue order. `channelNumber`
+     * is assigned (1..N) over exactly the visible set — primary, non-adult,
+     * generalist first then playlist order — so filtering and ordering by it is a
+     * pure index walk (no per-row filter, no computed sort). This is what keeps a
+     * jump to a far row instant on the full ~10k-channel list.
      */
-    @Query(
-        "SELECT * FROM channels WHERE isPrimary = 1 AND category != 'Adulte' " +
-            "ORDER BY (category = 'Général') DESC, sortIndex ASC",
-    )
+    @Query("SELECT * FROM channels WHERE channelNumber > 0 ORDER BY channelNumber ASC")
     fun pagingSource(): PagingSource<Int, ChannelEntity>
 
     /** Representative rows of a single canonical category, in playlist order. */
