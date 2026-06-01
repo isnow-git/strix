@@ -25,9 +25,9 @@ interface ChannelDao {
     @Query("SELECT * FROM channels WHERE isPrimary = 1 ORDER BY sortIndex ASC")
     fun pagingSource(): PagingSource<Int, ChannelEntity>
 
-    /** Representative rows of a single category, in playlist order. */
-    @Query("SELECT * FROM channels WHERE isPrimary = 1 AND groupTitle = :group ORDER BY sortIndex ASC")
-    fun pagingSourceByGroup(group: String): PagingSource<Int, ChannelEntity>
+    /** Representative rows of a single canonical category, in playlist order. */
+    @Query("SELECT * FROM channels WHERE isPrimary = 1 AND category = :category ORDER BY sortIndex ASC")
+    fun pagingSourceByCategory(category: String): PagingSource<Int, ChannelEntity>
 
     /** All quality variants of the channel [channelId] belongs to, best first. */
     @Query(
@@ -37,11 +37,8 @@ interface ChannelDao {
     )
     suspend fun variantsOf(channelId: String): List<ChannelEntity>
 
-    /** Distinct, non-empty category names for the filter rail. */
-    @Query(
-        "SELECT DISTINCT groupTitle FROM channels " +
-            "WHERE groupTitle IS NOT NULL AND groupTitle != '' ORDER BY groupTitle ASC",
-    )
+    /** Distinct canonical categories present (only among representative rows). */
+    @Query("SELECT DISTINCT category FROM channels WHERE isPrimary = 1")
     fun observeCategories(): Flow<List<String>>
 
     /**

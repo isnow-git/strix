@@ -24,6 +24,7 @@ import androidx.room.PrimaryKey
         Index(value = ["baseKey"]),
         Index(value = ["isPrimary"]),
         Index(value = ["epgBaseKey"]),
+        Index(value = ["category"]),
     ],
 )
 data class ChannelEntity(
@@ -51,4 +52,6 @@ data class ChannelEntity(
     val timeshift: Int,
     /** Logical-channel key ignoring time-shift, for inheriting an EPG source. */
     val epgBaseKey: String,
+    /** Canonical category label (see ChannelClassifier) for the browse rail. */
+    val category: String,
 )

@@ -7,6 +7,7 @@ import androidx.paging.cachedIn
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dev.strix.core.common.epg.EpgRepository
 import dev.strix.core.common.model.Channel
+import dev.strix.core.common.model.ChannelCategory
 import dev.strix.core.common.model.StreamSourceConfig
 import dev.strix.core.common.repository.ChannelRepository
 import dev.strix.core.common.result.StrixResult
@@ -22,6 +23,7 @@ import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -69,6 +71,7 @@ class ChannelsViewModel
         val categories: StateFlow<List<String>> =
             pagingRepository
                 .categories()
+                .map { labels -> labels.sortedBy { label -> categoryOrder[label] ?: Int.MAX_VALUE } }
                 .stateIn(
                     scope = viewModelScope,
                     started = SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS),
@@ -118,6 +121,9 @@ class ChannelsViewModel
         }
 
         private companion object {
+            val categoryOrder: Map<String, Int> =
+                ChannelCategory.entries.withIndex().associate { it.value.label to it.index }
+
             const val SEARCH_DEBOUNCE_MS = 300L
             const val ZAP_DEBOUNCE_MS = 300L
             const val STOP_TIMEOUT_MS = 5_000L

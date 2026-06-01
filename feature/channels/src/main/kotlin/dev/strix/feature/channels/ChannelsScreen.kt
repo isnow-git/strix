@@ -17,11 +17,16 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -33,7 +38,6 @@ import androidx.paging.LoadState
 import androidx.paging.compose.collectAsLazyPagingItems
 import androidx.paging.compose.itemContentType
 import androidx.paging.compose.itemKey
-import androidx.tv.material3.Button
 import androidx.tv.material3.ClickableSurfaceDefaults
 import androidx.tv.material3.Surface
 import androidx.tv.material3.Text
@@ -41,18 +45,14 @@ import coil.ImageLoader
 import coil.compose.AsyncImage
 import dev.strix.core.common.model.Channel
 import dev.strix.core.ui.focus.focusRing
+import dev.strix.core.ui.glass.glass
 import dev.strix.core.ui.image.rememberStrixImageLoader
 import dev.strix.core.ui.theme.StrixTheme
 
 /**
- * Channel browser: a vertical list (one channel per row, like commercial TV
- * players) backed by paging, with debounced FTS search and a "change source"
- * action.
- *
- * Scrolling stays smooth on low-RAM TVs because rows are **fixed-height** (the
- * list skips re-measuring) and each logo loads exactly once: Coil caches it in
- * memory and on disk, so a logo that scrolls off and back is a cache hit, never
- * a re-fetch.
+ * Channel browser: a clean glass list, one channel per row, with a canonical
+ * category rail and debounced FTS search. Rows are fixed-height and logos load
+ * once (Coil cache), so scrolling stays smooth on low-RAM TVs.
  */
 @Composable
 fun ChannelsScreen(
@@ -71,8 +71,8 @@ fun ChannelsScreen(
             modifier =
                 modifier
                     .fillMaxSize()
-                    .background(BACKGROUND)
-                    .padding(horizontal = 32.dp, vertical = 24.dp),
+                    .background(Brush.verticalGradient(listOf(BACKGROUND_TOP, BACKGROUND)))
+                    .padding(horizontal = 40.dp, vertical = 28.dp),
         ) {
             Header(
                 query = state.query,
@@ -97,7 +97,7 @@ fun ChannelsScreen(
                 channels.itemCount == 0 -> CenterMessage("Aucune chaîne. Change la source pour en importer.")
                 else ->
                     LazyColumn(
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp),
                         modifier = Modifier.fillMaxSize().padding(top = 20.dp),
                     ) {
                         items(
@@ -128,10 +128,10 @@ private fun Header(
 ) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(16.dp),
+        horizontalArrangement = Arrangement.spacedBy(20.dp),
     ) {
         Column {
-            Text(text = "Strix", color = Color.White, fontSize = 28.sp, fontWeight = FontWeight.Bold)
+            Text(text = "Strix", color = Color.White, fontSize = 30.sp, fontWeight = FontWeight.Bold)
             if (count > 0) {
                 Text(text = "$count chaînes", color = MUTED, fontSize = 13.sp)
             }
@@ -141,9 +141,7 @@ private fun Header(
             onQueryChange = onQueryChange,
             modifier = Modifier.weight(1f),
         )
-        Button(onClick = onChangeSource) {
-            Text(text = "Changer la source")
-        }
+        GlassButton(label = "Changer la source", onClick = onChangeSource)
     }
 }
 
@@ -155,7 +153,7 @@ private fun CategoryRail(
 ) {
     LazyRow(
         horizontalArrangement = Arrangement.spacedBy(10.dp),
-        modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
+        modifier = Modifier.fillMaxWidth().padding(top = 18.dp),
     ) {
         item {
             CategoryChip(label = "Toutes", selected = selected == null, onClick = { onSelect(null) })
@@ -176,26 +174,44 @@ private fun CategoryChip(
     selected: Boolean,
     onClick: () -> Unit,
 ) {
-    val container = if (selected) PRIMARY else SURFACE
     Surface(
         onClick = onClick,
         scale = ClickableSurfaceDefaults.scale(focusedScale = 1f),
-        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(20.dp)),
-        colors =
-            ClickableSurfaceDefaults.colors(
-                containerColor = container,
-                focusedContainerColor = container,
-                pressedContainerColor = container,
-            ),
+        colors = transparentSurfaceColors(),
         modifier = Modifier.focusRing(cornerRadius = 20.dp),
     ) {
-        Text(
-            text = label,
-            color = Color.White,
-            fontSize = 13.sp,
-            maxLines = 1,
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-        )
+        val fill =
+            if (selected) {
+                Modifier.background(PRIMARY, RoundedCornerShape(20.dp))
+            } else {
+                Modifier.glass(RoundedCornerShape(20.dp))
+            }
+        Box(modifier = fill.padding(horizontal = 16.dp, vertical = 8.dp)) {
+            Text(
+                text = label,
+                color = if (selected) ON_PRIMARY else Color.White,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Medium,
+                maxLines = 1,
+            )
+        }
+    }
+}
+
+@Composable
+private fun GlassButton(
+    label: String,
+    onClick: () -> Unit,
+) {
+    Surface(
+        onClick = onClick,
+        scale = ClickableSurfaceDefaults.scale(focusedScale = 1f),
+        colors = transparentSurfaceColors(),
+        modifier = Modifier.focusRing(cornerRadius = 14.dp),
+    ) {
+        Box(modifier = Modifier.glass(RoundedCornerShape(14.dp)).padding(horizontal = 18.dp, vertical = 12.dp)) {
+            Text(text = label, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+        }
     }
 }
 
@@ -216,18 +232,16 @@ private fun SearchField(
         value = query,
         onValueChange = onQueryChange,
         singleLine = true,
-        textStyle = TextStyle(color = Color.White, fontSize = 18.sp),
-        cursorBrush =
-            androidx.compose.ui.graphics
-                .SolidColor(Color.White),
+        textStyle = TextStyle(color = Color.White, fontSize = 16.sp),
+        cursorBrush = SolidColor(Color.White),
         modifier =
             modifier
-                .focusRing()
-                .background(SURFACE, RoundedCornerShape(10.dp))
+                .focusRing(cornerRadius = 12.dp)
+                .glass(RoundedCornerShape(12.dp))
                 .padding(horizontal = 16.dp, vertical = 12.dp),
         decorationBox = { inner ->
             if (query.isEmpty()) {
-                Text(text = "Rechercher une chaîne", color = MUTED)
+                Text(text = "Rechercher une chaîne", color = MUTED, fontSize = 16.sp)
             }
             inner()
         },
@@ -241,40 +255,38 @@ private fun ChannelRow(
     onFocused: () -> Unit,
     onClick: () -> Unit,
 ) {
+    var focused by remember { mutableStateOf(false) }
     Surface(
         onClick = onClick,
-        // Outline-only focus: disable the tv Surface's default focus zoom and
-        // keep the container transparent so only the focusRing border reacts.
         scale = ClickableSurfaceDefaults.scale(focusedScale = 1f),
-        colors =
-            ClickableSurfaceDefaults.colors(
-                containerColor = Color.Transparent,
-                focusedContainerColor = Color.Transparent,
-                pressedContainerColor = Color.Transparent,
-            ),
+        colors = transparentSurfaceColors(),
         modifier =
             Modifier
                 .fillMaxWidth()
                 .height(ROW_HEIGHT.dp)
-                .focusRing()
-                .onFocusChanged { if (it.isFocused) onFocused() },
+                .onFocusChanged {
+                    focused = it.isFocused
+                    if (it.isFocused) onFocused()
+                },
     ) {
+        // Focused row lifts onto a glass panel; the rest stay flat (cheap).
+        val surface = if (focused) Modifier.glass(RoundedCornerShape(14.dp)) else Modifier
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(16.dp),
-            modifier = Modifier.fillMaxSize().padding(horizontal = 12.dp),
+            modifier = surface.fillMaxSize().padding(horizontal = 14.dp),
         ) {
             LogoBox(channel = channel, imageLoader = imageLoader)
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = channel.displayName.ifBlank { channel.name },
-                    color = Color.White,
-                    fontSize = 16.sp,
-                    maxLines = 1,
-                )
-                channel.group?.let { group ->
-                    Text(text = group, color = MUTED, fontSize = 12.sp, maxLines = 1)
-                }
+            Text(
+                text = channel.displayName.ifBlank { channel.name },
+                color = Color.White,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Medium,
+                maxLines = 1,
+                modifier = Modifier.weight(1f),
+            )
+            channel.qualityLabel?.let { quality ->
+                Text(text = quality, color = MUTED, fontSize = 12.sp)
             }
             channel.number?.let { number ->
                 Text(text = "$number", color = MUTED, fontSize = 13.sp)
@@ -292,7 +304,7 @@ private fun LogoBox(
         modifier =
             Modifier
                 .size(LOGO_SIZE.dp)
-                .clip(RoundedCornerShape(6.dp))
+                .clip(RoundedCornerShape(8.dp))
                 .background(LOGO_BG),
         contentAlignment = Alignment.Center,
     ) {
@@ -315,12 +327,21 @@ private fun LogoBox(
     }
 }
 
+@Composable
+private fun transparentSurfaceColors() =
+    ClickableSurfaceDefaults.colors(
+        containerColor = Color.Transparent,
+        focusedContainerColor = Color.Transparent,
+        pressedContainerColor = Color.Transparent,
+    )
+
 private const val ROW_HEIGHT = 64
 private const val LOGO_SIZE = 52
 
-private val BACKGROUND = Color(0xFF0E0E14)
-private val SURFACE = Color(0xFF22222C)
+private val BACKGROUND = Color(0xFF0B0B0F)
+private val BACKGROUND_TOP = Color(0xFF15151F)
 private val PRIMARY = Color(0xFF6C8CFF)
+private val ON_PRIMARY = Color(0xFF0B0B0F)
 private val LOGO_BG = Color(0xFF1A1A22)
 private val MUTED = Color(0xFFB6B6C2)
 private val ERROR_RED = Color(0xFFFF6B6B)

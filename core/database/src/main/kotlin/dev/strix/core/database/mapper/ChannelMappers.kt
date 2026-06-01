@@ -1,6 +1,7 @@
 package dev.strix.core.database.mapper
 
 import dev.strix.core.common.model.Channel
+import dev.strix.core.common.model.ChannelClassifier
 import dev.strix.core.common.model.ChannelId
 import dev.strix.core.common.model.ChannelQuality
 import dev.strix.core.database.entity.ChannelEntity
@@ -49,6 +50,7 @@ fun Channel.toEntity(sortIndex: Int): ChannelEntity {
         epgChannelId = epgChannelId,
         timeshift = quality.timeshift,
         epgBaseKey = ChannelQuality.epgBaseKey(quality),
+        category = ChannelClassifier.classify(name, group).label,
     )
 }
 

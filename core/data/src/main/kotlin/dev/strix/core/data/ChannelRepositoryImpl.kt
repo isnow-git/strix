@@ -84,7 +84,7 @@ class ChannelRepositoryImpl
                 pagingSourceFactory = {
                     when {
                         match != null -> dao.searchPagingSource(match)
-                        group != null -> dao.pagingSourceByGroup(group)
+                        group != null -> dao.pagingSourceByCategory(group)
                         else -> dao.pagingSource()
                     }
                 },
