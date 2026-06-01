@@ -45,13 +45,13 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
@@ -129,17 +129,17 @@ fun ChannelsScreen(
 
     val previewPlayer = remember { viewModel.createPreviewPlayer() }
     var showVideo by remember { mutableStateOf(false) }
+    var playbackError by remember { mutableStateOf(false) }
     var expanded by remember { mutableStateOf(false) }
     var playerChannelId by remember { mutableStateOf<String?>(null) }
     var focusedChannelId by remember { mutableStateOf<String?>(null) }
     val fullscreenFocus = remember { FocusRequester() }
     val rowFocus = remember { FocusRequester() }
 
-    // Remote keypad: digits typed accumulate here and zap to that channel number.
-    var numberInput by remember { mutableStateOf("") }
+    // Remote keypad: isolated state so typing digits only recomposes the overlay.
+    val keypad = rememberKeypadZapState()
     var searchFocused by remember { mutableStateOf(false) }
-    // Highest channel number, so a typed number that can't grow into a longer one
-    // (e.g. 6000 of 11312) commits instantly instead of waiting for more digits.
+    // Highest channel number, so the keypad knows when a typed number is final.
     var maxNumber by remember { mutableIntStateOf(0) }
     LaunchedEffect(Unit) { maxNumber = viewModel.maxChannelNumber() }
     // Row to scroll to after a keypad zap (-1 = none); the list shows placeholders
@@ -177,10 +177,16 @@ fun ChannelsScreen(
     var rootHeight by remember { mutableIntStateOf(0) }
     val lifecycleOwner = LocalLifecycleOwner.current
 
+    // Retries left for the current stream (live feeds often need one) before it's
+    // declared unavailable. A plain holder, reset per channel.
+    val streamRetries = remember { intArrayOf(0) }
+
     // Plays a channel on the shared preview player (no-op if already playing it).
     fun playOn(channel: Channel) {
         if (playerChannelId == channel.id.value) return
         showVideo = false
+        playbackError = false
+        streamRetries[0] = 0
         previewPlayer.setMediaItem(MediaItem.fromUri(channel.streamUrl))
         previewPlayer.prepare()
         previewPlayer.playWhenReady = true
@@ -191,11 +197,23 @@ fun ChannelsScreen(
         val listener =
             object : Player.Listener {
                 override fun onPlaybackStateChanged(state: Int) {
-                    if (state == Player.STATE_READY) showVideo = true
+                    if (state == Player.STATE_READY) {
+                        showVideo = true
+                        playbackError = false
+                        streamRetries[0] = 0
+                    }
                 }
 
                 override fun onPlayerError(error: PlaybackException) {
                     showVideo = false
+                    // Retry once or twice before giving up — many IPTV feeds drop
+                    // the first connection. Then surface a clear "unavailable".
+                    if (streamRetries[0] < MAX_STREAM_RETRIES) {
+                        streamRetries[0]++
+                        previewPlayer.prepare()
+                    } else {
+                        playbackError = true
+                    }
                 }
             }
         previewPlayer.addListener(listener)
@@ -230,17 +248,24 @@ fun ChannelsScreen(
         playOn(channel)
     }
 
-    // Each keystroke restarts this. A number that could still grow into a valid
-    // longer one waits briefly for more digits; otherwise it commits instantly.
-    LaunchedEffect(numberInput) {
-        if (numberInput.isEmpty()) return@LaunchedEffect
-        val number = numberInput.toIntOrNull()
-        val canExtend = number != null && maxNumber > 0 && number * 10 <= maxNumber
-        if (canExtend) delay(NUMBER_COMMIT_MS)
-        numberInput = ""
-        // resolveZap switches to "Toutes" if the channel isn't in the current
-        // category, and returns the row to scroll to on return.
-        val zap = number?.let { viewModel.resolveZap(it) } ?: return@LaunchedEffect
+    // Deterministic fullscreen feedback: a stream is "unavailable" if it errors out
+    // (after retries) or never becomes ready within a timeout — so a zap to a dead
+    // channel shows a clear message instead of an endless spinner.
+    val unavailable by produceState(false, expanded, showVideo, playbackError, playerChannelId) {
+        value = false
+        if (!expanded || showVideo) return@produceState
+        if (playbackError) {
+            value = true
+            return@produceState
+        }
+        delay(STREAM_UNAVAILABLE_TIMEOUT_MS)
+        value = true
+    }
+
+    // Resolves a typed number and opens it fullscreen. Single place, called by the
+    // keypad overlay once a number is final.
+    suspend fun zapTo(number: Int) {
+        val zap = viewModel.resolveZap(number) ?: return
         // Keep the list/preview state in sync so returning from fullscreen is coherent.
         // The preview LaunchedEffect above is guarded by `expanded`, so this won't
         // trigger a stop/restart of the stream we're about to play.
@@ -267,7 +292,7 @@ fun ChannelsScreen(
                             return@onPreviewKeyEvent false
                         }
                         val digit = event.key.digitChar() ?: return@onPreviewKeyEvent false
-                        if (numberInput.length < MAX_NUMBER_DIGITS) numberInput += digit
+                        keypad.append(digit)
                         true
                     },
         ) {
@@ -370,14 +395,15 @@ fun ChannelsScreen(
                 }
             }
 
-            // Scrim + docked/fullscreen player + buffering spinner. Self-contained so
-            // the per-frame zoom animation recomposes only this subtree, not the whole
-            // screen (header, list, rail stay put).
+            // Scrim + docked/fullscreen player + buffering/unavailable feedback.
+            // Self-contained so the per-frame zoom animation recomposes only this
+            // subtree, not the whole screen (header, list, rail stay put).
             FullscreenOverlay(
                 player = previewPlayer,
                 hasPreview = previewChannel != null,
                 expanded = expanded,
                 showVideo = showVideo,
+                unavailable = unavailable,
                 slotRect = slotRect,
                 rootWidth = rootWidth,
                 rootHeight = rootHeight,
@@ -387,28 +413,9 @@ fun ChannelsScreen(
                 onToggle = { if (previewPlayer.isPlaying) previewPlayer.pause() else previewPlayer.play() },
             )
 
-            // Channel-number overlay: the digits being typed on the remote, bottom-right.
-            if (numberInput.isNotEmpty()) {
-                Box(
-                    modifier = Modifier.fillMaxSize().padding(36.dp),
-                    contentAlignment = Alignment.BottomEnd,
-                ) {
-                    Box(
-                        modifier =
-                            Modifier
-                                .shadow(16.dp, RoundedCornerShape(16.dp), clip = false)
-                                .background(NUMBER_OSD_BG, RoundedCornerShape(16.dp))
-                                .padding(horizontal = 26.dp, vertical = 14.dp),
-                    ) {
-                        Text(
-                            text = numberInput,
-                            color = Color.White,
-                            fontSize = 40.sp,
-                            fontWeight = FontWeight.Bold,
-                        )
-                    }
-                }
-            }
+            // Typed channel number (bottom-right), isolated so digits don't recompose
+            // the screen; commits the final number via zapTo.
+            KeypadOverlay(state = keypad, maxNumber = maxNumber, onCommit = { zapTo(it) })
         }
     }
 }
@@ -435,6 +442,7 @@ private fun FullscreenOverlay(
     hasPreview: Boolean,
     expanded: Boolean,
     showVideo: Boolean,
+    unavailable: Boolean,
     slotRect: Rect,
     rootWidth: Int,
     rootHeight: Int,
@@ -461,11 +469,15 @@ private fun FullscreenOverlay(
         Box(modifier = Modifier.fillMaxSize().alpha(expandProgress).background(Color.Black))
     }
 
-    // While the stream connects/buffers in fullscreen, show a spinner so a zap never
-    // looks dead (the video fades in once it's ready).
+    // Fullscreen feedback while there's no picture: a spinner while it connects,
+    // or a clear message once it's declared unavailable — never an endless spinner.
     if (expanded && !showVideo) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            LoadingSpinner()
+            if (unavailable) {
+                Text(text = "Chaîne indisponible", color = MUTED, fontSize = 16.sp)
+            } else {
+                LoadingSpinner()
+            }
         }
     }
 
@@ -927,11 +939,12 @@ private const val DESC_SCROLL_DELAY_MS = 2_000L
 private const val DESC_SCROLL_MS_PER_PX = 40
 private const val PREVIEW_RADIUS = 16f
 
-// Remote keypad zapping: wait this long after the last digit before tuning a
-// number that could still grow (instant otherwise), and cap the digit count.
-private const val NUMBER_COMMIT_MS = 900L
-private const val MAX_NUMBER_DIGITS = 5
 private const val SPINNER_PERIOD_MS = 900
+
+// Stream retries before a channel is declared unavailable, and how long to wait
+// for a first picture before showing that message rather than spinning forever.
+private const val MAX_STREAM_RETRIES = 2
+private const val STREAM_UNAVAILABLE_TIMEOUT_MS = 12_000L
 
 // Returning from a zap, retry focusing the target row while its page finishes
 // loading (generous budget so a cold jump still lands).
@@ -950,4 +963,3 @@ private val LOGO_BORDER = Color(0x40FFFFFF)
 private val PREVIEW_LOGO_BG = Color(0xFF2C2C34)
 private val MUTED = Color(0xFFB6B6C2)
 private val ERROR_RED = Color(0xFFFF6B6B)
-private val NUMBER_OSD_BG = Color(0xE60B0B0F)
