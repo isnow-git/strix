@@ -30,6 +30,13 @@ import javax.inject.Inject
  */
 interface StrixPlayerFactory {
     fun create(): ExoPlayer
+
+    /**
+     * A player tuned for the channel-home preview that also morphs to fullscreen:
+     * a smaller buffer for a faster first frame and a lower memory ceiling on the
+     * low-RAM TV, while still cushioning live-stream jitter.
+     */
+    fun createPreview(): ExoPlayer
 }
 
 @UnstableApi
@@ -55,18 +62,22 @@ class DefaultStrixPlayerFactory
             OkHttpDataSource.Factory(streamingClient)
         }
 
-        override fun create(): ExoPlayer {
+        override fun create(): ExoPlayer = build(bufferConfig)
+
+        override fun createPreview(): ExoPlayer = build(TvBufferConfig.preview)
+
+        private fun build(buffer: TvBufferConfig): ExoPlayer {
             val loadControl =
                 DefaultLoadControl
                     .Builder()
                     .setBufferDurationsMs(
-                        bufferConfig.minBufferMs,
-                        bufferConfig.maxBufferMs,
-                        bufferConfig.bufferForPlaybackMs,
-                        bufferConfig.bufferForPlaybackAfterRebufferMs,
+                        buffer.minBufferMs,
+                        buffer.maxBufferMs,
+                        buffer.bufferForPlaybackMs,
+                        buffer.bufferForPlaybackAfterRebufferMs,
                     ).setPrioritizeTimeOverSizeThresholds(true)
                     // second arg retainBackBufferFromKeyframe = true
-                    .setBackBuffer(bufferConfig.backBufferMs, true)
+                    .setBackBuffer(buffer.backBufferMs, true)
                     .build()
 
             val trackSelector =

@@ -34,4 +34,19 @@ data class TvBufferConfig(
             "bufferForPlaybackAfterRebufferMs ($bufferForPlaybackAfterRebufferMs) must be <= minBufferMs ($minBufferMs)"
         }
     }
+
+    companion object {
+        /**
+         * Lighter profile for the home preview/fullscreen player: a smaller first
+         * frame ([bufferForPlaybackMs]) so a zap shows fast, and a lower memory
+         * ceiling ([maxBufferMs]) for the low-RAM TV, while still cushioning jitter.
+         */
+        val preview =
+            TvBufferConfig(
+                minBufferMs = 15_000,
+                maxBufferMs = 30_000,
+                bufferForPlaybackMs = 1_500,
+                bufferForPlaybackAfterRebufferMs = 8_000,
+            )
+    }
 }

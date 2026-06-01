@@ -50,6 +50,8 @@ class ChannelsViewModelTest {
     private val playerFactory =
         object : dev.strix.core.player.StrixPlayerFactory {
             override fun create() = error("preview player is not used in these tests")
+
+            override fun createPreview() = error("preview player is not used in these tests")
         }
 
     private class FakeChannelRepository(

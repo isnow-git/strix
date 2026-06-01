@@ -76,7 +76,7 @@ class ChannelsViewModel
 
         /** A muted player for the side preview; owned/released by the screen. */
         @UnstableApi
-        fun createPreviewPlayer(): ExoPlayer = playerFactory.create()
+        fun createPreviewPlayer(): ExoPlayer = playerFactory.createPreview()
 
         /** Highest valid keypad number (= channel count), for instant-commit zapping. */
         suspend fun maxChannelNumber(): Int = channelRepository.channelCount()
