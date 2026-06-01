@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -36,6 +37,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -63,13 +65,21 @@ import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.util.lerp
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlin.math.roundToInt
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.paging.LoadState
@@ -113,11 +123,21 @@ fun ChannelsScreen(
     var expanded by remember { mutableStateOf(false) }
     var playerChannelId by remember { mutableStateOf<String?>(null) }
     val fullscreenFocus = remember { FocusRequester() }
-    // Fullscreen is already full-size; only its alpha fades in/out.
-    val fullscreenAlpha by animateFloatAsState(
+    var slotRect by remember { mutableStateOf(Rect.Zero) }
+    var rootWidth by remember { mutableIntStateOf(0) }
+    var rootHeight by remember { mutableIntStateOf(0) }
+    val density = LocalDensity.current
+    // One player view animates its bounds from the preview slot to fullscreen.
+    val expandProgress by animateFloatAsState(
         targetValue = if (expanded) 1f else 0f,
-        animationSpec = tween(durationMillis = 260, easing = LinearEasing),
-        label = "fullscreen",
+        animationSpec = tween(durationMillis = 300, easing = LinearEasing),
+        label = "expand",
+    )
+    // Reveals the video over the logo once it's ready (independent of expanding).
+    val videoAlpha by animateFloatAsState(
+        targetValue = if (showVideo) 1f else 0f,
+        animationSpec = tween(durationMillis = if (showVideo) 400 else 0, easing = LinearEasing),
+        label = "videoReveal",
     )
     val lifecycleOwner = LocalLifecycleOwner.current
 
@@ -175,7 +195,13 @@ fun ChannelsScreen(
     }
 
     StrixTheme {
-        Box(modifier = modifier.fillMaxSize()) {
+        Box(
+            modifier =
+                modifier.fillMaxSize().onGloballyPositioned {
+                    rootWidth = it.size.width
+                    rootHeight = it.size.height
+                },
+        ) {
         Column(
             modifier =
                 Modifier
@@ -258,61 +284,86 @@ fun ChannelsScreen(
                         channel = previewChannel,
                         epg = previewEpg,
                         imageLoader = imageLoader,
-                        player = previewPlayer,
-                        ready = showVideo,
-                        // Render the preview video only once fullscreen is fully gone
-                        // (one surface at a time); the logo state is independent.
-                        renderVideo = showVideo && fullscreenAlpha < 0.01f,
+                        onSlotBounds = { slotRect = it },
                         modifier = Modifier.width(PREVIEW_WIDTH.dp).fillMaxHeight().padding(start = 28.dp),
                     )
                 }
             }
         }
 
-            // Fullscreen player overlay: reuses the running preview, no re-buffer.
-            if (fullscreenAlpha > 0.001f) {
-                FullscreenPlayer(
+            // Black scrim behind the player as it grows to fullscreen.
+            if (expandProgress > 0.001f) {
+                Box(modifier = Modifier.fillMaxSize().alpha(expandProgress).background(Color.Black))
+            }
+
+            // One player view: docked over the preview slot, animating its bounds to
+            // fullscreen on open. One surface throughout → no black flash, no jump.
+            if (previewChannel != null && slotRect != Rect.Zero && rootWidth > 0) {
+                val fullRect = Rect(0f, 0f, rootWidth.toFloat(), rootHeight.toFloat())
+                FloatingPlayer(
                     player = previewPlayer,
-                    channel = previewChannel,
-                    ready = showVideo,
-                    alpha = fullscreenAlpha,
+                    rect = lerpRect(slotRect, fullRect, expandProgress),
+                    videoAlpha = videoAlpha,
+                    expanded = expanded,
                     focus = fullscreenFocus,
-                    onCollapse = { expanded = false },
+                    density = density,
+                    onBack = { expanded = false },
+                    onToggle = { if (previewPlayer.isPlaying) previewPlayer.pause() else previewPlayer.play() },
                 )
             }
         }
     }
 }
 
+private fun lerpRect(
+    a: Rect,
+    b: Rect,
+    t: Float,
+): Rect =
+    Rect(
+        left = lerp(a.left, b.left, t),
+        top = lerp(a.top, b.top, t),
+        right = lerp(a.right, b.right, t),
+        bottom = lerp(a.bottom, b.bottom, t),
+    )
+
 @Composable
-private fun FullscreenPlayer(
+private fun FloatingPlayer(
     player: ExoPlayer,
-    channel: Channel?,
-    ready: Boolean,
-    alpha: Float,
+    rect: Rect,
+    videoAlpha: Float,
+    expanded: Boolean,
     focus: FocusRequester,
-    onCollapse: () -> Unit,
+    density: Density,
+    onBack: () -> Unit,
+    onToggle: () -> Unit,
 ) {
-    LaunchedEffect(Unit) { runCatching { focus.requestFocus() } }
-    Box(
-        modifier =
+    LaunchedEffect(expanded) { if (expanded) runCatching { focus.requestFocus() } }
+    val width = with(density) { rect.width.toDp() }
+    val height = with(density) { rect.height.toDp() }
+    val keys =
+        if (expanded) {
             Modifier
-                .fillMaxSize()
-                .alpha(alpha)
-                .background(Color.Black)
                 .focusRequester(focus)
                 .focusable()
                 .onKeyEvent { event ->
                     if (event.type != KeyEventType.KeyDown) return@onKeyEvent false
                     when (event.key) {
-                        Key.Back -> { onCollapse(); true }
-                        Key.DirectionCenter, Key.Enter -> {
-                            if (player.isPlaying) player.pause() else player.play()
-                            true
-                        }
+                        Key.Back -> { onBack(); true }
+                        Key.DirectionCenter, Key.Enter -> { onToggle(); true }
                         else -> false
                     }
-                },
+                }
+        } else {
+            Modifier
+        }
+    Box(
+        modifier =
+            Modifier
+                .offset { IntOffset(rect.left.roundToInt(), rect.top.roundToInt()) }
+                .size(width, height)
+                .alpha(videoAlpha)
+                .then(keys),
     ) {
         AndroidView(
             modifier = Modifier.fillMaxSize(),
@@ -324,22 +375,6 @@ private fun FullscreenPlayer(
             },
             update = { it.setPlayer(player) },
         )
-        if (!ready) {
-            Text(
-                text = "Chargement…",
-                color = MUTED,
-                fontSize = 14.sp,
-                modifier = Modifier.align(Alignment.TopStart).padding(28.dp),
-            )
-        }
-        channel?.let {
-            Text(
-                text = it.displayName.ifBlank { it.name },
-                color = Color.White,
-                fontSize = 18.sp,
-                modifier = Modifier.align(Alignment.TopCenter).padding(28.dp),
-            )
-        }
     }
 }
 
@@ -348,9 +383,7 @@ private fun PreviewPanel(
     channel: Channel?,
     epg: NowNext?,
     imageLoader: ImageLoader,
-    player: ExoPlayer,
-    ready: Boolean,
-    renderVideo: Boolean,
+    onSlotBounds: (Rect) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     channel ?: return
@@ -377,42 +410,19 @@ private fun PreviewPanel(
         modifier = modifier.glass(RoundedCornerShape(24.dp)).padding(24.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
+        // The video is drawn by a single floating player positioned over this slot;
+        // here we just show the logo and report the slot's bounds for docking.
         Box(
             modifier =
                 Modifier
                     .fillMaxWidth()
                     .aspectRatio(16f / 9f)
-                    .clip(RoundedCornerShape(16.dp)),
+                    .clip(RoundedCornerShape(16.dp))
+                    .onGloballyPositioned { onSlotBounds(it.boundsInRoot()) }
+                    .background(PREVIEW_LOGO_BG)
+                    .border(1.dp, LOGO_BORDER, RoundedCornerShape(16.dp)),
+            contentAlignment = Alignment.Center,
         ) {
-            // Video behind, fit to 16:9; rendered only once ready so no stale frame.
-            if (renderVideo) {
-                AndroidView(
-                    modifier = Modifier.fillMaxSize(),
-                    factory = { context ->
-                        (LayoutInflater.from(context).inflate(R.layout.strix_player_view, null) as PlayerView).apply {
-                            resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
-                            setPlayer(player)
-                        }
-                    },
-                    update = { it.setPlayer(player) },
-                )
-            }
-            // Solid logo block on top: covers instantly on change, then fades out
-            // as one (opaque background fused with the logo) to reveal the video.
-            val logoAlpha by animateFloatAsState(
-                targetValue = if (ready) 0f else 1f,
-                animationSpec = tween(durationMillis = if (ready) 900 else 0, easing = LinearEasing),
-                label = "previewLogo",
-            )
-            Box(
-                modifier =
-                    Modifier
-                        .fillMaxSize()
-                        .alpha(logoAlpha)
-                        .background(PREVIEW_LOGO_BG)
-                        .border(1.dp, LOGO_BORDER, RoundedCornerShape(16.dp)),
-                contentAlignment = Alignment.Center,
-            ) {
                 if (channel.logoUrl != null) {
                     AsyncImage(
                         model = channel.logoUrl,
@@ -430,7 +440,6 @@ private fun PreviewPanel(
                     )
                 }
             }
-        }
 
         if (current != null) {
             Text(text = current.title, color = Color.White, fontSize = 16.sp, maxLines = 2)
