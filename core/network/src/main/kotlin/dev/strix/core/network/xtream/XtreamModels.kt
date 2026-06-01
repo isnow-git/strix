@@ -18,4 +18,5 @@ data class XtreamStream(
     @SerialName("stream_icon") val streamIcon: String? = null,
     @SerialName("category_id") val categoryId: String? = null,
     @SerialName("num") val number: Int? = null,
+    @SerialName("epg_channel_id") val epgChannelId: String? = null,
 )

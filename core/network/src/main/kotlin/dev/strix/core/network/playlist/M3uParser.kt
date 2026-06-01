@@ -73,6 +73,7 @@ class M3uParser {
                 logoUrl = attrs["tvg-logo"]?.takeIf { it.isNotBlank() },
                 group = attrs["group-title"]?.takeIf { it.isNotBlank() },
                 number = attrs["tvg-chno"]?.toIntOrNull(),
+                epgChannelId = attrs["tvg-id"]?.takeIf { it.isNotBlank() },
             )
         }
     }

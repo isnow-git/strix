@@ -36,5 +36,6 @@ internal fun XtreamStream.toChannel(
         logoUrl = streamIcon?.takeIf { it.isNotBlank() },
         group = categoryId?.let { categoryNames[it] }?.takeIf { it.isNotBlank() },
         number = number,
+        epgChannelId = epgChannelId?.takeIf { it.isNotBlank() },
     )
 }

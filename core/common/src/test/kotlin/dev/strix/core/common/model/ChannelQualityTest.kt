@@ -40,4 +40,33 @@ class ChannelQualityTest {
         assertThat(ChannelQuality.parse("Canal+ [HEVC] FHD").baseKey)
             .isEqualTo(ChannelQuality.parse("Canal+ HD").baseKey)
     }
+
+    @Test
+    fun `time-shift is parsed and a bare plus is not a shift`() {
+        assertThat(ChannelQuality.parse("FR - TF1 +1 FHD").timeshift).isEqualTo(1)
+        assertThat(ChannelQuality.parse("TF1 +6h").timeshift).isEqualTo(6)
+        assertThat(ChannelQuality.parse("TF1+ Star Academy").timeshift).isEqualTo(0)
+        assertThat(ChannelQuality.parse("TF1 HD").timeshift).isEqualTo(0)
+    }
+
+    @Test
+    fun `epg id groups variants and separates same-name different channels`() {
+        val tf1Fhd = ChannelQuality.parse("FR - TF1 FHD")
+        val tf1Uhd = ChannelQuality.parse("FR - TF1 4K")
+        // Same epg id + same time-shift = same group.
+        assertThat(ChannelQuality.groupKey("TF1.fr", tf1Fhd))
+            .isEqualTo(ChannelQuality.groupKey("TF1.fr", tf1Uhd))
+        // Same name but different epg id = different group (Discovery UK vs FR).
+        val disco = ChannelQuality.parse("Discovery HD")
+        assertThat(ChannelQuality.groupKey("discovery.uk", disco))
+            .isNotEqualTo(ChannelQuality.groupKey("discovery.fr", disco))
+    }
+
+    @Test
+    fun `a time-shifted feed never groups with the live one`() {
+        val live = ChannelQuality.parse("TF1 FHD")
+        val plus1 = ChannelQuality.parse("TF1 +1 FHD")
+        assertThat(ChannelQuality.groupKey("TF1.fr", live))
+            .isNotEqualTo(ChannelQuality.groupKey("TF1.fr", plus1))
+    }
 }

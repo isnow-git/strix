@@ -8,6 +8,8 @@ data class QualityInfo(
     val qualityLabel: String?,
     /** Sort rank, lower = better, used to pick the representative variant. */
     val qualityRank: Int,
+    /** Time-shift in hours (0 = live, >0 = delayed, -1 = delayed unknown amount). */
+    val timeshift: Int,
 )
 
 /**
@@ -40,6 +42,12 @@ object ChannelQuality {
     private val spaces = Regex("""\s+""")
     private val nonAlphaNum = Regex("""[^a-z0-9]""")
 
+    // Time-shift markers: "+1", "+6h", "+ 2 h" (a number after a plus).
+    private val timeshiftNum = Regex("""\+\s?(\d{1,2})\s?h?\b""", RegexOption.IGNORE_CASE)
+
+    // Worded delays with no explicit amount.
+    private val timeshiftWord = Regex("""(?i)\b(differ[eé]|timeshift|rewind|replay)\b""")
+
     fun parse(name: String): QualityInfo {
         var label: String? = null
         var rank = RANK_NONE
@@ -51,8 +59,14 @@ object ChannelQuality {
             }
         }
 
+        val shift =
+            timeshiftNum.find(name)?.groupValues?.getOrNull(1)?.toIntOrNull()
+                ?: if (timeshiftWord.containsMatchIn(name)) UNKNOWN_SHIFT else 0
+
         var base = name
         for (token in tokens) base = token.regex.replace(base, " ")
+        base = timeshiftNum.replace(base, " ")
+        base = timeshiftWord.replace(base, " ")
         base = codecs.replace(base, " ")
         base = brackets.replace(base, " ")
         base = spaces.replace(base, " ").trim()
@@ -62,6 +76,24 @@ object ChannelQuality {
             baseKey = key.ifEmpty { name.lowercase().replace(nonAlphaNum, "") },
             qualityLabel = label,
             qualityRank = rank,
+            timeshift = shift,
         )
     }
+
+    /**
+     * The grouping key joining variants of the same channel: the provider EPG id
+     * when present (strongest signal), else the normalized name; always split by
+     * time-shift so a delayed feed never groups with the live one.
+     */
+    fun groupKey(
+        epgChannelId: String?,
+        info: QualityInfo,
+    ): String {
+        val base =
+            epgChannelId?.trim()?.takeIf { it.isNotEmpty() }?.let { "e:${it.lowercase()}" }
+                ?: "n:${info.baseKey}"
+        return "$base|ts${info.timeshift}"
+    }
+
+    const val UNKNOWN_SHIFT = -1
 }

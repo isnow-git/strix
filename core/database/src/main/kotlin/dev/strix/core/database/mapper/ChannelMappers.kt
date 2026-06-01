@@ -41,7 +41,7 @@ fun Channel.toEntity(sortIndex: Int): ChannelEntity {
         groupTitle = group,
         number = number,
         sortIndex = sortIndex,
-        baseKey = quality.baseKey,
+        baseKey = ChannelQuality.groupKey(epgChannelId, quality),
         qualityRank = quality.qualityRank,
         qualityLabel = quality.qualityLabel,
     )

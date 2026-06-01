@@ -19,4 +19,6 @@ data class Channel(
     val number: Int? = null,
     /** Quality label of this variant (e.g. "FHD"), or null if unmarked. */
     val qualityLabel: String? = null,
+    /** Provider EPG id (Xtream `epg_channel_id` / M3U `tvg-id`), for grouping/EPG. */
+    val epgChannelId: String? = null,
 )
