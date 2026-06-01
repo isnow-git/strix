@@ -16,11 +16,13 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
@@ -84,6 +86,7 @@ fun PlayerScreen(
     val channel by viewModel.channel.collectAsStateWithLifecycle()
     val current by viewModel.current.collectAsStateWithLifecycle()
     val variants by viewModel.variants.collectAsStateWithLifecycle()
+    val nowNext by viewModel.nowNext.collectAsStateWithLifecycle()
     val player = remember { viewModel.createPlayer() }
     val context = LocalContext.current
     val bandwidthMeter = remember { DefaultBandwidthMeter.getSingletonInstance(context) }
@@ -298,7 +301,10 @@ fun PlayerScreen(
             exit = fadeOut(tween(FADE_MS)),
             modifier = Modifier.align(Alignment.TopCenter).padding(28.dp),
         ) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
                 (current ?: channel)?.let {
                     Text(
                         text = it.displayName.ifBlank { it.name },
@@ -313,6 +319,13 @@ fun PlayerScreen(
                         color = MUTED,
                         fontSize = 12.sp,
                     )
+                }
+                nowNext?.current?.let { programme ->
+                    Text(text = programme.title, color = Color.White, fontSize = 13.sp, maxLines = 1)
+                    EpgProgress(fraction = epgFraction(programme.startEpochSec, programme.endEpochSec))
+                }
+                nowNext?.next?.let { programme ->
+                    Text(text = "Puis · ${programme.title}", color = MUTED, fontSize = 11.sp, maxLines = 1)
                 }
             }
         }
@@ -408,6 +421,37 @@ private fun LoadingDots(modifier: Modifier = Modifier) {
 }
 
 @Composable
+private fun EpgProgress(fraction: Float) {
+    Box(
+        modifier =
+            Modifier
+                .width(EPG_BAR_WIDTH.dp)
+                .height(3.dp)
+                .clip(RoundedCornerShape(2.dp))
+                .background(Color(0x33FFFFFF)),
+    ) {
+        Box(
+            modifier =
+                Modifier
+                    .fillMaxHeight()
+                    .fillMaxWidth(fraction)
+                    .clip(RoundedCornerShape(2.dp))
+                    .background(Color.White),
+        )
+    }
+}
+
+/** How far through the current programme we are, 0..1. */
+private fun epgFraction(
+    startEpochSec: Long,
+    endEpochSec: Long,
+): Float {
+    if (endEpochSec <= startEpochSec) return 0f
+    val nowSec = System.currentTimeMillis() / 1000
+    return ((nowSec - startEpochSec).toFloat() / (endEpochSec - startEpochSec)).coerceIn(0f, 1f)
+}
+
+@Composable
 private fun PauseIcon() {
     Canvas(modifier = Modifier.size(72.dp)) {
         val w = size.width
@@ -460,6 +504,7 @@ private const val RESYNC_THRESHOLD_MS = 25_000L
 private const val FADE_MS = 400
 private const val DOT_COUNT = 3
 private const val DOT_SIZE = 8
+private const val EPG_BAR_WIDTH = 240
 private const val TOP_SCRIM_HEIGHT = 140
 private const val SHADOW_RADIUS = 7
 private const val SHADOW_DY = 2

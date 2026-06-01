@@ -38,13 +38,33 @@ class XtreamClient
                 .mapNotNull { stream -> stream.toChannel(base, config, categoryNames) }
         }
 
-        private inline fun <reified T> decodeList(url: String): List<T> {
+        /** Now/next EPG listings for a stream (`get_short_epg`). Blocking. */
+        fun shortEpg(
+            config: StreamSourceConfig.Xtream,
+            streamId: Long,
+            limit: Int,
+        ): List<XtreamEpgEntry> {
+            val base = normalizeXtreamBase(config.host)
+            val url = apiUrl(base, config, "get_short_epg") + "&stream_id=$streamId&limit=$limit"
+            return decode<XtreamEpgResponse>(url).listings
+        }
+
+        private inline fun <reified T> decodeList(url: String): List<T> =
+            decodeBody(url) { json.decodeFromString<List<T>>(it) }
+
+        private inline fun <reified T> decode(url: String): T =
+            decodeBody(url) { json.decodeFromString<T>(it) }
+
+        private inline fun <T> decodeBody(
+            url: String,
+            decode: (String) -> T,
+        ): T {
             val request = Request.Builder().url(url).build()
             return client.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) throw IOException("Unexpected HTTP ${response.code}")
                 val body = response.body?.string() ?: throw IOException("Empty Xtream response")
                 try {
-                    json.decodeFromString<List<T>>(body)
+                    decode(body)
                 } catch (e: SerializationException) {
                     throw IOException("Réponse Xtream invalide (provider injoignable ?)", e)
                 }

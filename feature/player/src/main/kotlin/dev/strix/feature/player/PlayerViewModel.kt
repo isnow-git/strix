@@ -6,6 +6,8 @@ import androidx.lifecycle.viewModelScope
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dev.strix.core.common.epg.EpgRepository
+import dev.strix.core.common.epg.NowNext
 import dev.strix.core.common.model.Channel
 import dev.strix.core.common.model.ChannelId
 import dev.strix.core.common.repository.ChannelRepository
@@ -31,6 +33,7 @@ class PlayerViewModel
     constructor(
         private val playerFactory: StrixPlayerFactory,
         private val channelRepository: ChannelRepository,
+        private val epgRepository: EpgRepository,
         savedStateHandle: SavedStateHandle,
     ) : ViewModel() {
         private val initialId = ChannelId(savedStateHandle.get<String>(ARG_CHANNEL_ID).orEmpty())
@@ -49,6 +52,11 @@ class PlayerViewModel
 
         /** The variant actually playing (its [Channel.streamUrl] is loaded). */
         val current: StateFlow<Channel?> = _current.asStateFlow()
+
+        private val _nowNext = MutableStateFlow<NowNext?>(null)
+
+        /** Now/next EPG for the current channel, or null when unavailable. */
+        val nowNext: StateFlow<NowNext?> = _nowNext.asStateFlow()
 
         init {
             viewModelScope.launch { selectChannel(channelRepository.channelById(initialId)) }
@@ -91,6 +99,9 @@ class PlayerViewModel
             val list = channelRepository.variants(channel.id).ifEmpty { listOf(channel) }
             _variants.value = list
             _current.value = list.first()
+            // Fetch EPG off the critical path so playback isn't delayed.
+            _nowNext.value = null
+            viewModelScope.launch { _nowNext.value = epgRepository.nowNext(channel) }
         }
 
         @UnstableApi

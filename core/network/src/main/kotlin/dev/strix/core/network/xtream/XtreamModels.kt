@@ -20,3 +20,17 @@ data class XtreamStream(
     @SerialName("num") val number: Int? = null,
     @SerialName("epg_channel_id") val epgChannelId: String? = null,
 )
+
+/** `get_short_epg` envelope. */
+@Serializable
+data class XtreamEpgResponse(
+    @SerialName("epg_listings") val listings: List<XtreamEpgEntry> = emptyList(),
+)
+
+/** One EPG listing; [titleBase64] is base64-encoded, timestamps are epoch seconds. */
+@Serializable
+data class XtreamEpgEntry(
+    @SerialName("title") val titleBase64: String? = null,
+    @SerialName("start_timestamp") val startTs: Long? = null,
+    @SerialName("stop_timestamp") val stopTs: Long? = null,
+)
