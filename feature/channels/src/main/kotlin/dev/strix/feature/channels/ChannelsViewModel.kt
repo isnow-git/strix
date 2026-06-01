@@ -6,6 +6,7 @@ import androidx.paging.PagingData
 import androidx.paging.cachedIn
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dev.strix.core.common.epg.EpgRepository
+import dev.strix.core.common.epg.NowNext
 import dev.strix.core.common.model.Channel
 import dev.strix.core.common.model.ChannelCategory
 import dev.strix.core.common.model.StreamSourceConfig
@@ -23,6 +24,8 @@ import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -93,6 +96,20 @@ class ChannelsViewModel
                 .debounce(ZAP_DEBOUNCE_MS)
                 .distinctUntilChanged()
 
+        private val previewSource =
+            focusedChannel.debounce(PREVIEW_DEBOUNCE_MS).distinctUntilChanged()
+
+        /** The channel shown in the side preview (debounced focus). */
+        val previewChannel: StateFlow<Channel?> =
+            previewSource.stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), null)
+
+        /** now/next EPG for the previewed channel; refetched as focus settles. */
+        val previewEpg: StateFlow<NowNext?> =
+            previewSource
+                .flatMapLatest { channel ->
+                    if (channel == null) flowOf<NowNext?>(null) else flow { emit(epgRepository.nowNext(channel)) }
+                }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), null)
+
         fun onIntent(intent: ChannelsIntent) {
             when (intent) {
                 is ChannelsIntent.SearchChanged -> {
@@ -126,6 +143,7 @@ class ChannelsViewModel
 
             const val SEARCH_DEBOUNCE_MS = 300L
             const val ZAP_DEBOUNCE_MS = 300L
+            const val PREVIEW_DEBOUNCE_MS = 350L
             const val STOP_TIMEOUT_MS = 5_000L
         }
     }

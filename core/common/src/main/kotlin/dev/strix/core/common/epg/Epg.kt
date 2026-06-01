@@ -7,6 +7,7 @@ data class EpgProgramme(
     val title: String,
     val startEpochSec: Long,
     val endEpochSec: Long,
+    val description: String? = null,
 )
 
 /** The current and upcoming programme for a channel. */

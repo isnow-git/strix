@@ -31,6 +31,7 @@ data class XtreamEpgResponse(
 @Serializable
 data class XtreamEpgEntry(
     @SerialName("title") val titleBase64: String? = null,
+    @SerialName("description") val descriptionBase64: String? = null,
     @SerialName("start_timestamp") val startTs: Long? = null,
     @SerialName("stop_timestamp") val stopTs: Long? = null,
 )

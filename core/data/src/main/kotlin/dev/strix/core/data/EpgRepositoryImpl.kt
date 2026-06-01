@@ -124,6 +124,7 @@ class EpgRepositoryImpl
                                         startSec = programme.startSec,
                                         stopSec = programme.stopSec,
                                         title = programme.title,
+                                        description = programme.description,
                                     )
                             }
                         }
@@ -148,13 +149,14 @@ class EpgRepositoryImpl
         }
 
         private fun EpgProgrammeEntity.toProgramme() =
-            EpgProgramme(title = title, startEpochSec = startSec, endEpochSec = stopSec)
+            EpgProgramme(title = title, startEpochSec = startSec, endEpochSec = stopSec, description = description)
 
         private fun XtreamEpgEntry.toProgramme(): EpgProgramme? {
             val start = startTs ?: return null
             val end = stopTs ?: return null
             val title = titleBase64?.let(::decodeBase64)?.takeIf { it.isNotBlank() } ?: return null
-            return EpgProgramme(title = title, startEpochSec = start, endEpochSec = end)
+            val description = descriptionBase64?.let(::decodeBase64)?.takeIf { it.isNotBlank() }
+            return EpgProgramme(title = title, startEpochSec = start, endEpochSec = end, description = description)
         }
 
         private fun streamIdOf(channelId: String): Long? = channelId.substringAfterLast(':').toLongOrNull()

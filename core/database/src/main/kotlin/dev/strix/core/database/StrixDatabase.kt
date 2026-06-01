@@ -18,7 +18,7 @@ import dev.strix.core.database.entity.EpgProgrammeEntity
         ChannelFtsEntity::class,
         EpgProgrammeEntity::class,
     ],
-    version = 5,
+    version = 6,
     exportSchema = true,
 )
 abstract class StrixDatabase : RoomDatabase() {

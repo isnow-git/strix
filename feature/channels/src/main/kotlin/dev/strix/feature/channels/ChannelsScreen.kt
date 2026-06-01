@@ -45,6 +45,7 @@ import androidx.tv.material3.Surface
 import androidx.tv.material3.Text
 import coil.ImageLoader
 import coil.compose.AsyncImage
+import dev.strix.core.common.epg.NowNext
 import dev.strix.core.common.model.Channel
 import dev.strix.core.ui.focus.focusRing
 import dev.strix.core.ui.glass.glass
@@ -65,6 +66,8 @@ fun ChannelsScreen(
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val categories by viewModel.categories.collectAsStateWithLifecycle()
+    val previewChannel by viewModel.previewChannel.collectAsStateWithLifecycle()
+    val previewEpg by viewModel.previewEpg.collectAsStateWithLifecycle()
     val channels = viewModel.pagedChannels.collectAsLazyPagingItems()
     val imageLoader = rememberStrixImageLoader()
 
@@ -94,30 +97,109 @@ fun ChannelsScreen(
             }
 
             val refreshing = channels.loadState.refresh is LoadState.Loading
-            when {
-                channels.itemCount == 0 && refreshing -> CenterMessage("Chargement…")
-                channels.itemCount == 0 -> CenterMessage("Aucune chaîne. Change la source pour en importer.")
-                else ->
-                    LazyColumn(
-                        verticalArrangement = Arrangement.spacedBy(6.dp),
-                        modifier = Modifier.fillMaxSize().padding(top = 20.dp),
-                    ) {
-                        items(
-                            count = channels.itemCount,
-                            key = channels.itemKey { it.id.value },
-                            contentType = channels.itemContentType { "channel" },
-                        ) { index ->
-                            val channel = channels[index] ?: return@items
-                            ChannelRow(
-                                position = index + 1,
-                                channel = channel,
-                                imageLoader = imageLoader,
-                                onFocused = { viewModel.onIntent(ChannelsIntent.ChannelFocused(channel)) },
-                                onClick = { onPlay(channel) },
-                            )
-                        }
+            Row(modifier = Modifier.fillMaxSize().padding(top = 20.dp)) {
+                Box(modifier = Modifier.weight(0.62f).fillMaxSize()) {
+                    when {
+                        channels.itemCount == 0 && refreshing -> CenterMessage("Chargement…")
+                        channels.itemCount == 0 ->
+                            CenterMessage("Aucune chaîne. Change la source pour en importer.")
+                        else ->
+                            LazyColumn(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                items(
+                                    count = channels.itemCount,
+                                    key = channels.itemKey { it.id.value },
+                                    contentType = channels.itemContentType { "channel" },
+                                ) { index ->
+                                    val channel = channels[index] ?: return@items
+                                    ChannelRow(
+                                        position = index + 1,
+                                        channel = channel,
+                                        imageLoader = imageLoader,
+                                        onFocused = {
+                                            viewModel.onIntent(ChannelsIntent.ChannelFocused(channel))
+                                        },
+                                        onClick = { onPlay(channel) },
+                                    )
+                                }
+                            }
                     }
+                }
+                PreviewPanel(
+                    channel = previewChannel,
+                    epg = previewEpg,
+                    imageLoader = imageLoader,
+                    modifier = Modifier.weight(0.38f).fillMaxSize().padding(start = 28.dp),
+                )
             }
+        }
+    }
+}
+
+@Composable
+private fun PreviewPanel(
+    channel: Channel?,
+    epg: NowNext?,
+    imageLoader: ImageLoader,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier.glass(RoundedCornerShape(24.dp)).padding(24.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp),
+    ) {
+        if (channel == null) {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Text(text = "Survole une chaîne", color = MUTED, fontSize = 14.sp)
+            }
+            return@Column
+        }
+
+        Box(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .height(120.dp)
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(LOGO_BG)
+                    .border(1.dp, LOGO_BORDER, RoundedCornerShape(16.dp)),
+            contentAlignment = Alignment.Center,
+        ) {
+            if (channel.logoUrl != null) {
+                AsyncImage(
+                    model = channel.logoUrl,
+                    imageLoader = imageLoader,
+                    contentDescription = channel.name,
+                    contentScale = ContentScale.Fit,
+                    modifier = Modifier.fillMaxSize().padding(20.dp),
+                )
+            } else {
+                Text(
+                    text = channel.displayName.ifBlank { channel.name }.take(1).uppercase(),
+                    color = Color.White,
+                    fontSize = 40.sp,
+                    fontWeight = FontWeight.Bold,
+                )
+            }
+        }
+
+        Text(
+            text = channel.displayName.ifBlank { channel.name },
+            color = Color.White,
+            fontSize = 22.sp,
+            fontWeight = FontWeight.SemiBold,
+            maxLines = 1,
+        )
+
+        val current = epg?.current
+        if (current != null) {
+            Text(text = current.title, color = Color.White, fontSize = 16.sp, maxLines = 2)
+            current.description?.let { description ->
+                Text(text = description, color = MUTED, fontSize = 13.sp, maxLines = 6)
+            }
+        } else {
+            Text(text = "Programme indisponible", color = MUTED, fontSize = 13.sp)
+        }
+        epg?.next?.let { next ->
+            Text(text = "Puis · ${next.title}", color = MUTED, fontSize = 12.sp, maxLines = 1)
         }
     }
 }

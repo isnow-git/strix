@@ -14,6 +14,7 @@ data class XmltvProgramme(
     val startSec: Long,
     val stopSec: Long,
     val title: String,
+    val description: String?,
 )
 
 /**
@@ -38,7 +39,9 @@ class XmltvParser {
         var startSec = 0L
         var stopSec = 0L
         var title: String? = null
+        var description: String? = null
         var inTitle = false
+        var inDesc = false
 
         var event = parser.eventType
         while (event != XmlPullParser.END_DOCUMENT) {
@@ -51,19 +54,24 @@ class XmltvParser {
                             startSec = parseTime(parser.getAttributeValue(null, "start"))
                             stopSec = parseTime(parser.getAttributeValue(null, "stop"))
                             title = null
+                            description = null
                         }
                         TAG_TITLE -> if (channel != null) inTitle = true
+                        TAG_DESC -> if (channel != null) inDesc = true
                     }
-                XmlPullParser.TEXT ->
+                XmlPullParser.TEXT -> {
                     if (inTitle && title == null) title = parser.text?.trim()
+                    if (inDesc && description == null) description = parser.text?.trim()
+                }
                 XmlPullParser.END_TAG ->
                     when (parser.name) {
                         TAG_TITLE -> inTitle = false
+                        TAG_DESC -> inDesc = false
                         TAG_PROGRAMME -> {
                             val ch = channel
                             val t = title
                             if (ch != null && !t.isNullOrBlank() && stopSec > startSec) {
-                                onProgramme(XmltvProgramme(ch, startSec, stopSec, t))
+                                onProgramme(XmltvProgramme(ch, startSec, stopSec, t, description))
                             }
                             channel = null
                         }
@@ -95,6 +103,7 @@ class XmltvParser {
     private companion object {
         const val TAG_PROGRAMME = "programme"
         const val TAG_TITLE = "title"
+        const val TAG_DESC = "desc"
         const val TS_DIGITS = 14
     }
 }

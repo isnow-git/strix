@@ -19,4 +19,5 @@ data class EpgProgrammeEntity(
     val startSec: Long,
     val stopSec: Long,
     val title: String,
+    val description: String? = null,
 )
