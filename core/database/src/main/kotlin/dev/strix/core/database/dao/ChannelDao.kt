@@ -82,6 +82,10 @@ interface ChannelDao {
     )
     suspend fun epgSibling(epgBaseKey: String): ChannelEntity?
 
+    /** Distinct provider EPG ids present, to filter an external XMLTV guide. */
+    @Query("SELECT DISTINCT epgChannelId FROM channels WHERE epgChannelId IS NOT NULL AND epgChannelId != ''")
+    suspend fun distinctEpgChannelIds(): List<String>
+
     /** The next channel (representative) in playlist order, for D-pad zapping. */
     @Query(
         "SELECT * FROM channels WHERE isPrimary = 1 AND sortIndex > " +

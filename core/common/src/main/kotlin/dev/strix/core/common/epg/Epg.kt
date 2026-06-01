@@ -15,8 +15,14 @@ data class NowNext(
     val next: EpgProgramme?,
 )
 
-/** Provides now/next EPG for a channel (Xtream `get_short_epg`); best-effort. */
+/** Provides now/next EPG for a channel; best-effort. */
 interface EpgRepository {
-    /** @return now/next, or null if the source has no EPG (e.g. plain M3U). */
+    /** @return now/next, or null if no EPG is available for the channel. */
     suspend fun nowNext(channel: Channel): NowNext?
+
+    /**
+     * Ingests the external XMLTV guide for the user's channels (authoritative
+     * source). Safe to call after each catalogue import; no-op on failure.
+     */
+    suspend fun refresh()
 }

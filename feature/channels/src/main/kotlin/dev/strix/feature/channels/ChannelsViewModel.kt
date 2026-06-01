@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import androidx.paging.PagingData
 import androidx.paging.cachedIn
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dev.strix.core.common.epg.EpgRepository
 import dev.strix.core.common.model.Channel
 import dev.strix.core.common.model.StreamSourceConfig
 import dev.strix.core.common.repository.ChannelRepository
@@ -43,6 +44,7 @@ class ChannelsViewModel
     constructor(
         private val pagingRepository: ChannelPagingRepository,
         private val channelRepository: ChannelRepository,
+        private val epgRepository: EpgRepository,
     ) : ViewModel() {
         private val query = MutableStateFlow("")
         private val refreshing = MutableStateFlow(false)
@@ -108,7 +110,7 @@ class ChannelsViewModel
                 refreshing.value = true
                 error.value = null
                 when (val result = channelRepository.refreshFrom(source)) {
-                    is StrixResult.Success -> Unit
+                    is StrixResult.Success -> launch { epgRepository.refresh() }
                     is StrixResult.Failure -> error.value = result.error.message ?: "Refresh failed"
                 }
                 refreshing.value = false

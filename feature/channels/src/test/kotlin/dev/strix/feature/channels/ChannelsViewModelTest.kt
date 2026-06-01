@@ -39,6 +39,13 @@ class ChannelsViewModelTest {
             override fun categories(): Flow<List<String>> = flowOf(emptyList())
         }
 
+    private val epgRepository =
+        object : dev.strix.core.common.epg.EpgRepository {
+            override suspend fun nowNext(channel: Channel) = null
+
+            override suspend fun refresh() = Unit
+        }
+
     private class FakeChannelRepository(
         var refreshResult: StrixResult<Int> = 0.asSuccess(),
     ) : ChannelRepository {
@@ -65,7 +72,8 @@ class ChannelsViewModelTest {
         Dispatchers.resetMain()
     }
 
-    private fun viewModel(repo: ChannelRepository = FakeChannelRepository()) = ChannelsViewModel(pagingRepository, repo)
+    private fun viewModel(repo: ChannelRepository = FakeChannelRepository()) =
+        ChannelsViewModel(pagingRepository, repo, epgRepository)
 
     @Test
     fun `search intent updates the query in state`() =

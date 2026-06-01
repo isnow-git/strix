@@ -9,6 +9,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import dev.strix.core.database.StrixDatabase
 import dev.strix.core.database.dao.ChannelDao
+import dev.strix.core.database.dao.EpgProgrammeDao
 import javax.inject.Singleton
 
 /** Provides the Room database and DAOs as application-scoped singletons. */
@@ -29,4 +30,7 @@ object DatabaseModule {
 
     @Provides
     fun provideChannelDao(database: StrixDatabase): ChannelDao = database.channelDao()
+
+    @Provides
+    fun provideEpgProgrammeDao(database: StrixDatabase): EpgProgrammeDao = database.epgProgrammeDao()
 }

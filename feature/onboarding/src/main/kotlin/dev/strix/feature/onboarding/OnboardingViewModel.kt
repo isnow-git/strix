@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import dev.strix.core.common.epg.EpgRepository
 import dev.strix.core.common.model.StreamSourceConfig
 import dev.strix.core.common.onboarding.CredentialReceiver
 import dev.strix.core.common.repository.ChannelRepository
@@ -34,6 +35,7 @@ class OnboardingViewModel
         @ApplicationContext private val context: Context,
         private val credentialReceiver: CredentialReceiver,
         private val channelRepository: ChannelRepository,
+        private val epgRepository: EpgRepository,
     ) : ViewModel() {
         private val session = OnboardingSession()
         private var server: OnboardingServer? = null
@@ -95,12 +97,15 @@ class OnboardingViewModel
                 when (val refreshed = channelRepository.refreshFrom(source)) {
                     is StrixResult.Failure ->
                         fail(refreshed.error.message ?: "Saved, but could not load channels.")
-                    is StrixResult.Success ->
+                    is StrixResult.Success -> {
                         _uiState.value =
                             OnboardingUiState(
                                 phase = OnboardingPhase.Done,
                                 message = "Imported ${refreshed.value} channels.",
                             )
+                        // Ingest the EPG guide in the background; not blocking onboarding.
+                        viewModelScope.launch { epgRepository.refresh() }
+                    }
                 }
                 stop()
             }
