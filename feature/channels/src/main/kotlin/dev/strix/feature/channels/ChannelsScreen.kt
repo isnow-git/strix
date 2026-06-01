@@ -3,12 +3,16 @@ package dev.strix.feature.channels
 import android.view.LayoutInflater
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.focusable
@@ -55,6 +59,9 @@ import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
@@ -132,6 +139,10 @@ fun ChannelsScreen(
     // Remote keypad: digits typed accumulate here and zap to that channel number.
     var numberInput by remember { mutableStateOf("") }
     var searchFocused by remember { mutableStateOf(false) }
+    // Highest channel number, so a typed number that can't grow into a longer one
+    // (e.g. 6000 of 11312) commits instantly instead of waiting for more digits.
+    var maxNumber by remember { mutableIntStateOf(0) }
+    LaunchedEffect(Unit) { maxNumber = viewModel.maxChannelNumber() }
     // Row to scroll to after a keypad zap (-1 = none); the list shows placeholders
     // so this jumps straight to the target however far down it is.
     var pendingScrollIndex by remember { mutableIntStateOf(-1) }
@@ -232,12 +243,13 @@ fun ChannelsScreen(
         playOn(channel)
     }
 
-    // Each keystroke restarts this; once the digits settle, resolve the number and
-    // open that channel fullscreen (or just clear it if no channel has that number).
+    // Each keystroke restarts this. A number that could still grow into a valid
+    // longer one waits briefly for more digits; otherwise it commits instantly.
     LaunchedEffect(numberInput) {
         if (numberInput.isEmpty()) return@LaunchedEffect
-        delay(NUMBER_COMMIT_MS)
         val number = numberInput.toIntOrNull()
+        val canExtend = number != null && maxNumber > 0 && number * 10 <= maxNumber
+        if (canExtend) delay(NUMBER_COMMIT_MS)
         numberInput = ""
         // resolveZap switches to "Toutes" if the channel isn't in the current
         // category, and returns the row to scroll to on return.
@@ -374,6 +386,14 @@ fun ChannelsScreen(
             // Black scrim behind the player as it grows to fullscreen.
             if (expandProgress > 0.001f) {
                 Box(modifier = Modifier.fillMaxSize().alpha(expandProgress).background(Color.Black))
+            }
+
+            // While the stream connects/buffers in fullscreen, show a spinner so a
+            // zap never looks dead (the video fades in once it's ready).
+            if (expanded && !showVideo) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    LoadingSpinner()
+                }
             }
 
             // One player view: docked over the preview slot, animating its bounds to
@@ -700,6 +720,28 @@ private fun GlassButton(
 }
 
 @Composable
+private fun LoadingSpinner() {
+    val transition = rememberInfiniteTransition(label = "spinner")
+    val angle by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = infiniteRepeatable(tween(SPINNER_PERIOD_MS, easing = LinearEasing)),
+        label = "angle",
+    )
+    Canvas(modifier = Modifier.size(48.dp)) {
+        rotate(angle) {
+            drawArc(
+                color = Color.White,
+                startAngle = 0f,
+                sweepAngle = 270f,
+                useCenter = false,
+                style = Stroke(width = 4.dp.toPx(), cap = StrokeCap.Round),
+            )
+        }
+    }
+}
+
+@Composable
 private fun CenterMessage(text: String) {
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Text(text = text, color = MUTED, fontSize = 16.sp)
@@ -835,10 +877,11 @@ private const val DESC_SCROLL_DELAY_MS = 2_000L
 private const val DESC_SCROLL_MS_PER_PX = 40
 private const val PREVIEW_RADIUS = 16f
 
-// Remote keypad zapping: wait this long after the last digit before tuning, and
-// cap the number of digits a channel number can have.
-private const val NUMBER_COMMIT_MS = 1_500L
-private const val MAX_NUMBER_DIGITS = 4
+// Remote keypad zapping: wait this long after the last digit before tuning a
+// number that could still grow (instant otherwise), and cap the digit count.
+private const val NUMBER_COMMIT_MS = 900L
+private const val MAX_NUMBER_DIGITS = 5
+private const val SPINNER_PERIOD_MS = 900
 
 // Returning from a zap, retry focusing the target row while its page finishes
 // loading (generous budget so a cold jump still lands).

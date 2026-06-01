@@ -78,6 +78,9 @@ class ChannelsViewModel
         @UnstableApi
         fun createPreviewPlayer(): ExoPlayer = playerFactory.create()
 
+        /** Highest valid keypad number (= channel count), for instant-commit zapping. */
+        suspend fun maxChannelNumber(): Int = channelRepository.channelCount()
+
         /**
          * Resolves a typed keypad number to its channel and the row to land on: if
          * the channel isn't in the currently selected category, the view switches to
