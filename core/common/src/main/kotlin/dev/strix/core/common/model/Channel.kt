@@ -17,6 +17,12 @@ data class Channel(
     val logoUrl: String? = null,
     val group: String? = null,
     val number: Int? = null,
+    /**
+     * Fixed catalogue number, stable across every category view (Général channels
+     * first in base order, then the rest). 0 until assigned at import. Typing it on
+     * the remote zaps straight to the channel.
+     */
+    val channelNumber: Int = 0,
     /** Quality label of this variant (e.g. "FHD"), or null if unmarked. */
     val qualityLabel: String? = null,
     /** Provider EPG id (Xtream `epg_channel_id` / M3U `tvg-id`), for grouping/EPG. */

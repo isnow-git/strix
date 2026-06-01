@@ -25,6 +25,7 @@ import androidx.room.PrimaryKey
         Index(value = ["isPrimary"]),
         Index(value = ["epgBaseKey"]),
         Index(value = ["category"]),
+        Index(value = ["channelNumber"]),
     ],
 )
 data class ChannelEntity(
@@ -40,6 +41,12 @@ data class ChannelEntity(
     val groupTitle: String?,
     val number: Int?,
     val sortIndex: Int,
+    /**
+     * Fixed catalogue number for the remote keypad, stable across categories:
+     * the rank over primary, non-adult channels in the canonical browse order
+     * (Général first, then base [sortIndex]). Assigned after import; 0 otherwise.
+     */
+    val channelNumber: Int = 0,
     /** Quality-independent grouping key shared by a channel's variants. */
     val baseKey: String,
     /** Quality sort rank, lower = better. */

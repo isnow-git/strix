@@ -59,14 +59,23 @@ class ChannelsViewModelTest {
 
         override suspend fun channelById(id: ChannelId): Channel? = null
 
+        override suspend fun channelByNumber(number: Int): Channel? = null
+
         override suspend fun nextChannel(id: ChannelId): Channel? = null
 
         override suspend fun previousChannel(id: ChannelId): Channel? = null
 
         override suspend fun variants(id: ChannelId): List<Channel> = emptyList()
 
+        override suspend fun channelCount(): Int = 1
+
         override suspend fun refreshFrom(source: StreamSourceConfig): StrixResult<Int> = refreshResult
     }
+
+    private val credentialStore =
+        object : dev.strix.core.common.onboarding.CredentialStore {
+            override suspend fun current(): StreamSourceConfig? = null
+        }
 
     @Before
     fun setUp() {
@@ -80,7 +89,7 @@ class ChannelsViewModelTest {
 
     @androidx.media3.common.util.UnstableApi
     private fun viewModel(repo: ChannelRepository = FakeChannelRepository()) =
-        ChannelsViewModel(pagingRepository, repo, epgRepository, playerFactory)
+        ChannelsViewModel(pagingRepository, repo, epgRepository, playerFactory, credentialStore)
 
     @Test
     fun `search intent updates the query in state`() =

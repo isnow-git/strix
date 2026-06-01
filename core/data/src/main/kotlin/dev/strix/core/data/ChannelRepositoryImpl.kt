@@ -91,6 +91,13 @@ class ChannelRepositoryImpl
                 dao.findByChannelId(id.value)?.toDomain()
             }
 
+        override suspend fun channelByNumber(number: Int): Channel? =
+            withContext(dispatchers.io) {
+                dao.findByNumber(number)?.toDomain()
+            }
+
+        override suspend fun channelCount(): Int = withContext(dispatchers.io) { dao.count() }
+
         override suspend fun nextChannel(id: ChannelId): Channel? =
             withContext(dispatchers.io) {
                 dao.findNext(id.value)?.toDomain()

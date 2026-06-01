@@ -12,6 +12,7 @@ import dev.strix.core.common.epg.NowNext
 import dev.strix.core.common.model.Channel
 import dev.strix.core.common.model.ChannelCategory
 import dev.strix.core.common.model.StreamSourceConfig
+import dev.strix.core.common.onboarding.CredentialStore
 import dev.strix.core.common.repository.ChannelRepository
 import dev.strix.core.common.result.StrixResult
 import dev.strix.core.data.ChannelPagingRepository
@@ -54,10 +55,25 @@ class ChannelsViewModel
         private val channelRepository: ChannelRepository,
         private val epgRepository: EpgRepository,
         private val playerFactory: StrixPlayerFactory,
+        private val credentialStore: CredentialStore,
     ) : ViewModel() {
+        init {
+            // Self-heal an empty catalogue (first run after a schema reset) by
+            // re-importing from the stored source, so the user never lands on an
+            // empty list when a source is already configured.
+            viewModelScope.launch {
+                if (channelRepository.channelCount() == 0) {
+                    credentialStore.current()?.let { refresh(it) }
+                }
+            }
+        }
+
         /** A muted player for the side preview; owned/released by the screen. */
         @UnstableApi
         fun createPreviewPlayer(): ExoPlayer = playerFactory.create()
+
+        /** Resolves a typed keypad number to its channel (remote zapping), or null. */
+        suspend fun channelByNumber(number: Int): Channel? = channelRepository.channelByNumber(number)
 
         private val query = MutableStateFlow("")
         private val refreshing = MutableStateFlow(false)

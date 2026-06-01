@@ -24,6 +24,12 @@ interface ChannelRepository {
     /** Looks up a single channel by id, or `null` if unknown. */
     suspend fun channelById(id: ChannelId): Channel?
 
+    /** Looks up a channel by its fixed keypad [number] (remote zapping), or `null`. */
+    suspend fun channelByNumber(number: Int): Channel?
+
+    /** Number of channels currently stored; 0 means the catalogue needs importing. */
+    suspend fun channelCount(): Int
+
     /** The next channel in playlist order (for zapping), or `null` at the end. */
     suspend fun nextChannel(id: ChannelId): Channel?
 

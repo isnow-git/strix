@@ -45,6 +45,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
@@ -126,6 +127,10 @@ fun ChannelsScreen(
     val fullscreenFocus = remember { FocusRequester() }
     val rowFocus = remember { FocusRequester() }
 
+    // Remote keypad: digits typed accumulate here and zap to that channel number.
+    var numberInput by remember { mutableStateOf("") }
+    var searchFocused by remember { mutableStateOf(false) }
+
     // Return focus to the channel we were watching after leaving fullscreen.
     LaunchedEffect(expanded) {
         if (!expanded && focusedChannelId != null) runCatching { rowFocus.requestFocus() }
@@ -201,13 +206,42 @@ fun ChannelsScreen(
         playOn(channel)
     }
 
+    // Each keystroke restarts this; once the digits settle, resolve the number and
+    // open that channel fullscreen (or just clear it if no channel has that number).
+    LaunchedEffect(numberInput) {
+        if (numberInput.isEmpty()) return@LaunchedEffect
+        delay(NUMBER_COMMIT_MS)
+        val number = numberInput.toIntOrNull()
+        numberInput = ""
+        val target = number?.let { viewModel.channelByNumber(it) } ?: return@LaunchedEffect
+        // Keep the list/preview state in sync so returning from fullscreen is coherent.
+        // The preview LaunchedEffect above is guarded by `expanded`, so this won't
+        // trigger a stop/restart of the stream we're about to play.
+        viewModel.onIntent(ChannelsIntent.ChannelFocused(target))
+        focusedChannelId = target.id.value
+        playOn(target)
+        expanded = true
+    }
+
     StrixTheme {
         Box(
             modifier =
-                modifier.fillMaxSize().onGloballyPositioned {
-                    rootWidth = it.size.width
-                    rootHeight = it.size.height
-                },
+                modifier
+                    .fillMaxSize()
+                    .onGloballyPositioned {
+                        rootWidth = it.size.width
+                        rootHeight = it.size.height
+                    }
+                    // Remote keypad capture: digits anywhere (except while typing a
+                    // search) buffer a channel number instead of moving focus.
+                    .onPreviewKeyEvent { event ->
+                        if (event.type != KeyEventType.KeyDown || searchFocused) {
+                            return@onPreviewKeyEvent false
+                        }
+                        val digit = event.key.digitChar() ?: return@onPreviewKeyEvent false
+                        if (numberInput.length < MAX_NUMBER_DIGITS) numberInput += digit
+                        true
+                    },
         ) {
             Column(
                 modifier =
@@ -221,6 +255,7 @@ fun ChannelsScreen(
                     count = channels.itemCount,
                     searchFocus = searchFocus,
                     onQueryChange = { viewModel.onIntent(ChannelsIntent.SearchChanged(it)) },
+                    onSearchFocusChanged = { searchFocused = it },
                     onChangeSource = onChangeSource,
                 )
                 if (categories.isNotEmpty()) {
@@ -267,7 +302,6 @@ fun ChannelsScreen(
                                     ) { index ->
                                         val channel = channels[index] ?: return@items
                                         ChannelRow(
-                                            position = index + 1,
                                             channel = channel,
                                             imageLoader = imageLoader,
                                             focusRequester =
@@ -308,11 +342,15 @@ fun ChannelsScreen(
 
             // One player view: docked over the preview slot, animating its bounds to
             // fullscreen on open. One surface throughout → no black flash, no jump.
-            if (previewChannel != null && slotRect != Rect.Zero && rootWidth > 0) {
+            // Renders while expanded even without a preview (keypad zap to an
+            // off-list channel), falling back to a full-screen origin so there's no
+            // jump from a stale slot.
+            if ((previewChannel != null || expanded) && rootWidth > 0) {
                 val fullRect = Rect(0f, 0f, rootWidth.toFloat(), rootHeight.toFloat())
+                val origin = if (slotRect != Rect.Zero) slotRect else fullRect
                 FloatingPlayer(
                     player = previewPlayer,
-                    rect = lerpRect(slotRect, fullRect, expandProgress),
+                    rect = lerpRect(origin, fullRect, expandProgress),
                     cornerRadius = lerp(PREVIEW_RADIUS, 0f, expandProgress).dp,
                     videoAlpha = videoAlpha,
                     expanded = expanded,
@@ -322,9 +360,48 @@ fun ChannelsScreen(
                     onToggle = { if (previewPlayer.isPlaying) previewPlayer.pause() else previewPlayer.play() },
                 )
             }
+
+            // Channel-number overlay: the digits being typed on the remote, bottom-right.
+            if (numberInput.isNotEmpty()) {
+                Box(
+                    modifier = Modifier.fillMaxSize().padding(36.dp),
+                    contentAlignment = Alignment.BottomEnd,
+                ) {
+                    Box(
+                        modifier =
+                            Modifier
+                                .shadow(16.dp, RoundedCornerShape(16.dp), clip = false)
+                                .background(NUMBER_OSD_BG, RoundedCornerShape(16.dp))
+                                .padding(horizontal = 26.dp, vertical = 14.dp),
+                    ) {
+                        Text(
+                            text = numberInput,
+                            color = Color.White,
+                            fontSize = 40.sp,
+                            fontWeight = FontWeight.Bold,
+                        )
+                    }
+                }
+            }
         }
     }
 }
+
+/** Maps a D-pad/keypad digit key (top row or num-pad) to its character, else null. */
+private fun Key.digitChar(): Char? =
+    when (this) {
+        Key.Zero, Key.NumPad0 -> '0'
+        Key.One, Key.NumPad1 -> '1'
+        Key.Two, Key.NumPad2 -> '2'
+        Key.Three, Key.NumPad3 -> '3'
+        Key.Four, Key.NumPad4 -> '4'
+        Key.Five, Key.NumPad5 -> '5'
+        Key.Six, Key.NumPad6 -> '6'
+        Key.Seven, Key.NumPad7 -> '7'
+        Key.Eight, Key.NumPad8 -> '8'
+        Key.Nine, Key.NumPad9 -> '9'
+        else -> null
+    }
 
 private fun lerpRect(
     a: Rect,
@@ -490,6 +567,7 @@ private fun Header(
     count: Int,
     searchFocus: FocusRequester,
     onQueryChange: (String) -> Unit,
+    onSearchFocusChanged: (Boolean) -> Unit,
     onChangeSource: () -> Unit,
 ) {
     Row(
@@ -505,7 +583,11 @@ private fun Header(
         SearchField(
             query = query,
             onQueryChange = onQueryChange,
-            modifier = Modifier.weight(1f).focusRequester(searchFocus),
+            modifier =
+                Modifier
+                    .weight(1f)
+                    .focusRequester(searchFocus)
+                    .onFocusChanged { onSearchFocusChanged(it.isFocused) },
         )
         GlassButton(label = "Changer la source", onClick = onChangeSource)
     }
@@ -616,7 +698,6 @@ private fun SearchField(
 
 @Composable
 private fun ChannelRow(
-    position: Int,
     channel: Channel,
     imageLoader: ImageLoader,
     focusRequester: FocusRequester?,
@@ -646,11 +727,11 @@ private fun ChannelRow(
             modifier = surface.fillMaxSize().padding(horizontal = 14.dp),
         ) {
             Text(
-                text = "$position",
+                text = channel.channelNumber.toString(),
                 color = MUTED,
                 fontSize = 13.sp,
                 maxLines = 1,
-                modifier = Modifier.width(40.dp),
+                modifier = Modifier.width(44.dp),
             )
             LogoBox(channel = channel, imageLoader = imageLoader)
             Text(
@@ -718,6 +799,11 @@ private const val DESC_SCROLL_DELAY_MS = 2_000L
 private const val DESC_SCROLL_MS_PER_PX = 40
 private const val PREVIEW_RADIUS = 16f
 
+// Remote keypad zapping: wait this long after the last digit before tuning, and
+// cap the number of digits a channel number can have.
+private const val NUMBER_COMMIT_MS = 1_500L
+private const val MAX_NUMBER_DIGITS = 4
+
 private val BACKGROUND = Color(0xFF0B0B0F)
 private val BACKGROUND_TOP = Color(0xFF15151F)
 private val PRIMARY = Color(0xFF6C8CFF)
@@ -727,3 +813,4 @@ private val LOGO_BORDER = Color(0x40FFFFFF)
 private val PREVIEW_LOGO_BG = Color(0xFF2C2C34)
 private val MUTED = Color(0xFFB6B6C2)
 private val ERROR_RED = Color(0xFFFF6B6B)
+private val NUMBER_OSD_BG = Color(0xE60B0B0F)

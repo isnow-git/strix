@@ -20,6 +20,7 @@ fun ChannelEntity.toDomain(): Channel =
         logoUrl = logoUrl,
         group = groupTitle,
         number = number,
+        channelNumber = channelNumber,
         qualityLabel = qualityLabel,
         // Read straight from the row: the (regex-heavy) clean-up ran once at import.
         displayName = displayName,

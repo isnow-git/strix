@@ -81,6 +81,10 @@ interface ChannelDao {
     @Query("SELECT * FROM channels WHERE channelId = :channelId LIMIT 1")
     suspend fun findByChannelId(channelId: String): ChannelEntity?
 
+    /** The channel with a given fixed keypad number (see [channelNumbersInOrder]). */
+    @Query("SELECT * FROM channels WHERE isPrimary = 1 AND channelNumber = :number LIMIT 1")
+    suspend fun findByNumber(number: Int): ChannelEntity?
+
     /** A live sibling of the same logical channel that has a provider EPG id. */
     @Query(
         "SELECT * FROM channels WHERE epgBaseKey = :epgBaseKey " +
@@ -140,11 +144,43 @@ interface ChannelDao {
     )
     suspend fun markPrimaries()
 
-    /** Recomputes the primary flag for every group. Call once after an import. */
+    /**
+     * Primary, non-adult channels in the canonical browse order (Général first,
+     * then base playlist order) — the order their fixed [ChannelEntity.channelNumber]
+     * follows, so position N in this list becomes channel number N.
+     */
+    @Query(
+        "SELECT channelId FROM channels WHERE isPrimary = 1 AND category != 'Adulte' " +
+            "ORDER BY (category = 'Général') DESC, sortIndex ASC",
+    )
+    suspend fun channelNumbersInOrder(): List<String>
+
+    @Query("UPDATE channels SET channelNumber = :number WHERE channelId = :channelId")
+    suspend fun setChannelNumber(
+        channelId: String,
+        number: Int,
+    )
+
+    /**
+     * Assigns each representative channel its fixed catalogue number (1-based) in
+     * the canonical order. A single ordered read plus a reused update statement —
+     * O(n), so it scales to large catalogues unlike a correlated-rank UPDATE.
+     */
+    @Transaction
+    suspend fun assignChannelNumbers() {
+        var number = 1
+        for (channelId in channelNumbersInOrder()) {
+            setChannelNumber(channelId, number)
+            number++
+        }
+    }
+
+    /** Recomputes grouping + fixed numbering for every channel. Call once after an import. */
     @Transaction
     suspend fun finalizeGroups() {
         clearPrimaryFlags()
         markPrimaries()
+        assignChannelNumbers()
     }
 
     /**
