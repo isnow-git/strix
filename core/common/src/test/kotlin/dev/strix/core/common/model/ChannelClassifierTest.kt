@@ -23,4 +23,12 @@ class ChannelClassifierTest {
     fun `unknown channel falls back to general`() {
         assertThat(ChannelClassifier.classify("Zzz Channel", null)).isEqualTo(ChannelCategory.General)
     }
+
+    @Test
+    fun `iptv-org categories map to canonical, most specific wins`() {
+        assertThat(ChannelCategory.fromIptvOrg(listOf("entertainment"))).isEqualTo(ChannelCategory.Entertainment)
+        assertThat(ChannelCategory.fromIptvOrg(listOf("general"))).isEqualTo(ChannelCategory.Entertainment)
+        assertThat(ChannelCategory.fromIptvOrg(listOf("entertainment", "sports"))).isEqualTo(ChannelCategory.Sport)
+        assertThat(ChannelCategory.fromIptvOrg(listOf("unknownX"))).isNull()
+    }
 }

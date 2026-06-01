@@ -5,6 +5,7 @@ import androidx.paging.PagingConfig
 import androidx.paging.PagingData
 import androidx.paging.map
 import dev.strix.core.common.dispatcher.DispatcherProvider
+import dev.strix.core.common.epg.normalizeEpgId
 import dev.strix.core.common.model.Channel
 import dev.strix.core.common.model.ChannelId
 import dev.strix.core.common.model.StreamSourceConfig
@@ -16,6 +17,7 @@ import dev.strix.core.common.result.asSuccess
 import dev.strix.core.database.dao.ChannelDao
 import dev.strix.core.database.mapper.toDomain
 import dev.strix.core.database.search.FtsQuery
+import dev.strix.core.network.catalog.IptvOrgClient
 import dev.strix.core.network.playlist.M3uParser
 import dev.strix.core.network.resilience.retryWithBackoff
 import dev.strix.core.network.xtream.XtreamClient
@@ -41,11 +43,35 @@ class ChannelRepositoryImpl
         private val dao: ChannelDao,
         private val okHttpClient: OkHttpClient,
         private val xtreamClient: XtreamClient,
+        private val iptvOrgClient: IptvOrgClient,
         private val dispatchers: DispatcherProvider,
     ) : ChannelRepository,
         ChannelPagingRepository {
         private val parser = M3uParser()
         private val importer = PlaylistImporter()
+
+        @Volatile
+        private var categoryCache: Map<String, String>? = null
+
+        // iptv-org channel categories (norm id -> canonical label), fetched once and
+        // reused for the session; empty on failure so the keyword classifier wins.
+        private fun categoryMap(): Map<String, String> =
+            categoryCache ?: run {
+                val fetched =
+                    try {
+                        iptvOrgClient.categoryMap()
+                    } catch (e: IOException) {
+                        emptyMap()
+                    }
+                categoryCache = fetched
+                fetched
+            }
+
+        private fun Channel.categorized(map: Map<String, String>): Channel {
+            val key = epgChannelId?.let(::normalizeEpgId)?.takeIf { it.isNotEmpty() }
+            val resolved = key?.let { map[it] }
+            return if (resolved != null) copy(category = resolved) else this
+        }
 
         override fun observeChannels(query: String?): Flow<List<Channel>> {
             val match = query?.takeUnless { it.isBlank() }?.let(FtsQuery::prefixMatch)
@@ -112,6 +138,7 @@ class ChannelRepositoryImpl
             }
 
         private suspend fun fetchAndImportM3u(url: String): Int {
+            val categories = categoryMap()
             val request = Request.Builder().url(url).build()
             val count =
                 okHttpClient.newCall(request).execute().use { response ->
@@ -121,8 +148,9 @@ class ChannelRepositoryImpl
                     dao.clearChannels()
                     dao.clearFts()
                     body.charStream().buffered().useLines { lines ->
-                        importer.import(parser.parse(lines)) { channels, fts ->
-                            dao.insertBatch(channels, fts)
+                        val channels = parser.parse(lines).map { it.categorized(categories) }
+                        importer.import(channels) { batch, fts ->
+                            dao.insertBatch(batch, fts)
                         }
                     }
                 }
@@ -136,7 +164,8 @@ class ChannelRepositoryImpl
                     maxAttempts = MAX_FETCH_ATTEMPTS,
                     shouldRetry = { it is IOException },
                 ) {
-                    val channels = xtreamClient.liveChannels(config)
+                    val categories = categoryMap()
+                    val channels = xtreamClient.liveChannels(config).map { it.categorized(categories) }
                     dao.clearChannels()
                     dao.clearFts()
                     val count =

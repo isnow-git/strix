@@ -23,4 +23,6 @@ data class Channel(
     val epgChannelId: String? = null,
     /** Cleaned name for display (country/quality/junk stripped); falls back to [name]. */
     val displayName: String = "",
+    /** Canonical category label resolved at import (iptv-org / classifier), or empty. */
+    val category: String = "",
 )

@@ -15,7 +15,48 @@ enum class ChannelCategory(
     Docs("Docs"),
     Entertainment("Divertissement"),
     Adult("Adulte"),
-    General("Général"),
+    General("Autres"),
+    ;
+
+    companion object {
+        // iptv-org category id -> our canonical bucket.
+        private val iptvMap: Map<String, ChannelCategory> =
+            mapOf(
+                "sports" to Sport,
+                "news" to News,
+                "weather" to News,
+                "movies" to Movies,
+                "series" to Series,
+                "kids" to Kids,
+                "family" to Kids,
+                "animation" to Kids,
+                "music" to Music,
+                "documentary" to Docs,
+                "science" to Docs,
+                "education" to Docs,
+                "nature" to Docs,
+                "xxx" to Adult,
+                "entertainment" to Entertainment,
+                "comedy" to Entertainment,
+                "general" to Entertainment,
+                "culture" to Entertainment,
+                "lifestyle" to Entertainment,
+                "cooking" to Entertainment,
+                "travel" to Entertainment,
+                "public" to Entertainment,
+                "relax" to Entertainment,
+            )
+
+        // Most specific buckets win when a channel has several iptv-org categories.
+        private val priority =
+            listOf(Adult, Sport, News, Kids, Docs, Music, Movies, Series, Entertainment)
+
+        /** Maps iptv-org categories to a canonical category, or null if none apply. */
+        fun fromIptvOrg(categories: List<String>): ChannelCategory? {
+            val mapped = categories.mapNotNull { iptvMap[it.lowercase()] }.toSet()
+            return priority.firstOrNull { it in mapped }
+        }
+    }
 }
 
 /**

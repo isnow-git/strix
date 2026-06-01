@@ -50,7 +50,8 @@ fun Channel.toEntity(sortIndex: Int): ChannelEntity {
         epgChannelId = epgChannelId,
         timeshift = quality.timeshift,
         epgBaseKey = ChannelQuality.epgBaseKey(quality),
-        category = ChannelClassifier.classify(name, group).label,
+        // Prefer the category resolved at import (iptv-org); else keyword fallback.
+        category = category.ifBlank { ChannelClassifier.classify(name, group).label },
     )
 }
 
