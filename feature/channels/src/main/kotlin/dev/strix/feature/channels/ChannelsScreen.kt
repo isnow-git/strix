@@ -44,6 +44,7 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -195,7 +196,7 @@ fun ChannelsScreen(
                         else ->
                             LazyColumn(
                                 verticalArrangement = Arrangement.spacedBy(6.dp),
-                                contentPadding = PaddingValues(bottom = 28.dp),
+                                contentPadding = PaddingValues(bottom = 56.dp),
                             ) {
                                 items(
                                     count = channels.itemCount,
@@ -273,54 +274,53 @@ private fun PreviewPanel(
                 Modifier
                     .fillMaxWidth()
                     .height(150.dp)
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(LOGO_BG)
-                    .border(1.dp, LOGO_BORDER, RoundedCornerShape(16.dp)),
-            contentAlignment = Alignment.Center,
+                    .clip(RoundedCornerShape(16.dp)),
         ) {
-            if (channel.logoUrl != null) {
-                AsyncImage(
-                    model = channel.logoUrl,
-                    imageLoader = imageLoader,
-                    contentDescription = channel.name,
-                    contentScale = ContentScale.Fit,
-                    modifier = Modifier.fillMaxSize().padding(24.dp),
-                )
-            } else {
-                Text(
-                    text = channel.displayName.ifBlank { channel.name }.take(1).uppercase(),
-                    color = Color.White,
-                    fontSize = 44.sp,
-                    fontWeight = FontWeight.Bold,
-                )
-            }
-            // Live preview fades in over the logo once the stream is ready.
-            val videoAlpha by animateFloatAsState(
-                targetValue = if (showVideo) 1f else 0f,
-                animationSpec = tween(durationMillis = 450),
-                label = "previewVideo",
+            // Video sits behind, filling the frame (cropped to fill).
+            AndroidView(
+                modifier = Modifier.fillMaxSize(),
+                factory = { context ->
+                    PlayerView(context).apply {
+                        useController = false
+                        resizeMode = AspectRatioFrameLayout.RESIZE_MODE_ZOOM
+                        setPlayer(player)
+                    }
+                },
+                update = { it.setPlayer(player) },
             )
-            if (videoAlpha > 0.01f) {
-                AndroidView(
-                    modifier = Modifier.fillMaxSize().alpha(videoAlpha),
-                    factory = { context ->
-                        PlayerView(context).apply {
-                            useController = false
-                            setPlayer(player)
-                        }
-                    },
-                    update = { it.setPlayer(player) },
-                )
+            // Logo on top; fades out to reveal the video once it's ready.
+            val logoAlpha by animateFloatAsState(
+                targetValue = if (showVideo) 0f else 1f,
+                animationSpec = tween(durationMillis = 450),
+                label = "previewLogo",
+            )
+            Box(
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .alpha(logoAlpha)
+                        .background(LOGO_BG)
+                        .border(1.dp, LOGO_BORDER, RoundedCornerShape(16.dp)),
+                contentAlignment = Alignment.Center,
+            ) {
+                if (channel.logoUrl != null) {
+                    AsyncImage(
+                        model = channel.logoUrl,
+                        imageLoader = imageLoader,
+                        contentDescription = channel.name,
+                        contentScale = ContentScale.Fit,
+                        modifier = Modifier.fillMaxSize().padding(24.dp),
+                    )
+                } else {
+                    Text(
+                        text = channel.displayName.ifBlank { channel.name }.take(1).uppercase(),
+                        color = Color.White,
+                        fontSize = 44.sp,
+                        fontWeight = FontWeight.Bold,
+                    )
+                }
             }
         }
-
-        Text(
-            text = channel.displayName.ifBlank { channel.name },
-            color = Color.White,
-            fontSize = 22.sp,
-            fontWeight = FontWeight.SemiBold,
-            maxLines = 1,
-        )
 
         if (current != null) {
             Text(text = current.title, color = Color.White, fontSize = 16.sp, maxLines = 2)
