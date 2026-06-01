@@ -122,7 +122,14 @@ fun ChannelsScreen(
     var showVideo by remember { mutableStateOf(false) }
     var expanded by remember { mutableStateOf(false) }
     var playerChannelId by remember { mutableStateOf<String?>(null) }
+    var focusedChannelId by remember { mutableStateOf<String?>(null) }
     val fullscreenFocus = remember { FocusRequester() }
+    val rowFocus = remember { FocusRequester() }
+
+    // Return focus to the channel we were watching after leaving fullscreen.
+    LaunchedEffect(expanded) {
+        if (!expanded && focusedChannelId != null) runCatching { rowFocus.requestFocus() }
+    }
     var slotRect by remember { mutableStateOf(Rect.Zero) }
     var rootWidth by remember { mutableIntStateOf(0) }
     var rootHeight by remember { mutableIntStateOf(0) }
@@ -263,7 +270,10 @@ fun ChannelsScreen(
                                         position = index + 1,
                                         channel = channel,
                                         imageLoader = imageLoader,
+                                        focusRequester =
+                                            if (channel.id.value == focusedChannelId) rowFocus else null,
                                         onFocused = {
+                                            focusedChannelId = channel.id.value
                                             viewModel.onIntent(ChannelsIntent.ChannelFocused(channel))
                                         },
                                         onClick = {
@@ -303,6 +313,7 @@ fun ChannelsScreen(
                 FloatingPlayer(
                     player = previewPlayer,
                     rect = lerpRect(slotRect, fullRect, expandProgress),
+                    cornerRadius = lerp(PREVIEW_RADIUS, 0f, expandProgress).dp,
                     videoAlpha = videoAlpha,
                     expanded = expanded,
                     focus = fullscreenFocus,
@@ -331,6 +342,7 @@ private fun lerpRect(
 private fun FloatingPlayer(
     player: ExoPlayer,
     rect: Rect,
+    cornerRadius: androidx.compose.ui.unit.Dp,
     videoAlpha: Float,
     expanded: Boolean,
     focus: FocusRequester,
@@ -363,6 +375,7 @@ private fun FloatingPlayer(
                 .offset { IntOffset(rect.left.roundToInt(), rect.top.roundToInt()) }
                 .size(width, height)
                 .alpha(videoAlpha)
+                .clip(RoundedCornerShape(cornerRadius))
                 .then(keys),
     ) {
         AndroidView(
@@ -596,6 +609,7 @@ private fun ChannelRow(
     position: Int,
     channel: Channel,
     imageLoader: ImageLoader,
+    focusRequester: FocusRequester?,
     onFocused: () -> Unit,
     onClick: () -> Unit,
 ) {
@@ -608,6 +622,7 @@ private fun ChannelRow(
             Modifier
                 .fillMaxWidth()
                 .height(ROW_HEIGHT.dp)
+                .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
                 .onFocusChanged {
                     focused = it.isFocused
                     if (it.isFocused) onFocused()
@@ -687,6 +702,7 @@ private const val PREVIEW_WIDTH = 380
 private const val PREVIEW_VIDEO_DELAY_MS = 1_300L
 private const val DESC_SCROLL_DELAY_MS = 2_000L
 private const val DESC_SCROLL_MS_PER_PX = 40
+private const val PREVIEW_RADIUS = 16f
 
 private val BACKGROUND = Color(0xFF0B0B0F)
 private val BACKGROUND_TOP = Color(0xFF15151F)
