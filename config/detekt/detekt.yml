@@ -2,8 +2,18 @@
 # rules on top of detekt's defaults.
 
 complexity:
+  # @Composable functions are naturally long, branchy and take many parameters
+  # (state + callbacks); the length/complexity rules don't fit them, so they're
+  # scoped out — same rationale as FunctionNaming below.
   LongMethod:
     threshold: 80
+    ignoreAnnotated: ['Composable']
+  CyclomaticComplexMethod:
+    ignoreAnnotated: ['Composable']
+  LongParameterList:
+    ignoreAnnotated: ['Composable']
+  NestedBlockDepth:
+    ignoreAnnotated: ['Composable']
   TooManyFunctions:
     active: false
 
@@ -14,6 +24,10 @@ style:
     active: false
   ReturnCount:
     max: 4
+  ThrowsCount:
+    # HTTP guard + empty-body guard + parse guard is a normal shape for the network
+    # clients; three throws in one function is fine.
+    max: 3
   MaxLineLength:
     maxLineLength: 120
 

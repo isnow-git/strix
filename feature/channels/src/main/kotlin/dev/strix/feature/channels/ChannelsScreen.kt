@@ -1,5 +1,6 @@
 package dev.strix.feature.channels
 
+import android.view.LayoutInflater
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloatAsState
@@ -8,19 +9,16 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
-import android.view.LayoutInflater
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -31,8 +29,10 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -41,16 +41,6 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.viewinterop.AndroidView
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleEventObserver
-import androidx.lifecycle.compose.LocalLifecycleOwner
-import androidx.media3.common.MediaItem
-import androidx.media3.common.PlaybackException
-import androidx.media3.common.Player
-import androidx.media3.exoplayer.ExoPlayer
-import androidx.media3.ui.AspectRatioFrameLayout
-import androidx.media3.ui.PlayerView
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -58,30 +48,39 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
-import androidx.compose.ui.geometry.Rect
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.unit.IntOffset
-import androidx.compose.ui.util.lerp
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import kotlin.math.roundToInt
+import androidx.compose.ui.util.lerp
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.media3.common.MediaItem
+import androidx.media3.common.PlaybackException
+import androidx.media3.common.Player
+import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.ui.AspectRatioFrameLayout
+import androidx.media3.ui.PlayerView
 import androidx.paging.LoadState
 import androidx.paging.compose.collectAsLazyPagingItems
 import androidx.paging.compose.itemContentType
@@ -98,6 +97,7 @@ import dev.strix.core.ui.glass.glass
 import dev.strix.core.ui.image.rememberStrixImageLoader
 import dev.strix.core.ui.theme.StrixTheme
 import kotlinx.coroutines.delay
+import kotlin.math.roundToInt
 
 /**
  * Channel browser: a clean glass list, one channel per row, with a canonical
@@ -209,97 +209,97 @@ fun ChannelsScreen(
                     rootHeight = it.size.height
                 },
         ) {
-        Column(
-            modifier =
-                Modifier
-                    .fillMaxSize()
-                    .background(Brush.verticalGradient(listOf(BACKGROUND_TOP, BACKGROUND)))
-                    .padding(horizontal = 40.dp, vertical = 28.dp),
-        ) {
-            Header(
-                query = state.query,
-                count = channels.itemCount,
-                searchFocus = searchFocus,
-                onQueryChange = { viewModel.onIntent(ChannelsIntent.SearchChanged(it)) },
-                onChangeSource = onChangeSource,
-            )
-            if (categories.isNotEmpty()) {
-                CategoryRail(
-                    categories = categories,
-                    selected = state.selectedCategory,
-                    onSelect = { viewModel.onIntent(ChannelsIntent.CategorySelected(it)) },
+            Column(
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .background(Brush.verticalGradient(listOf(BACKGROUND_TOP, BACKGROUND)))
+                        .padding(horizontal = 40.dp, vertical = 28.dp),
+            ) {
+                Header(
+                    query = state.query,
+                    count = channels.itemCount,
+                    searchFocus = searchFocus,
+                    onQueryChange = { viewModel.onIntent(ChannelsIntent.SearchChanged(it)) },
+                    onChangeSource = onChangeSource,
                 )
-            }
-            state.errorMessage?.let { message ->
-                Text(text = message, color = ERROR_RED, modifier = Modifier.padding(top = 12.dp))
-            }
-
-            val refreshing = channels.loadState.refresh is LoadState.Loading
-            Row(modifier = Modifier.fillMaxSize().padding(top = 20.dp)) {
-                Box(
-                    modifier =
-                        Modifier
-                            .weight(1f)
-                            .fillMaxHeight()
-                            .onPreviewKeyEvent { event ->
-                                // Left from anywhere in the list jumps to search/filters.
-                                if (event.type == KeyEventType.KeyDown && event.key == Key.DirectionLeft) {
-                                    runCatching { searchFocus.requestFocus() }
-                                    true
-                                } else {
-                                    false
-                                }
-                            },
-                ) {
-                    when {
-                        channels.itemCount == 0 && refreshing -> CenterMessage("Chargement…")
-                        channels.itemCount == 0 ->
-                            CenterMessage("Aucune chaîne. Change la source pour en importer.")
-                        else ->
-                            LazyColumn(
-                                verticalArrangement = Arrangement.spacedBy(6.dp),
-                                contentPadding = PaddingValues(bottom = 56.dp),
-                            ) {
-                                items(
-                                    count = channels.itemCount,
-                                    key = channels.itemKey { it.id.value },
-                                    contentType = channels.itemContentType { "channel" },
-                                ) { index ->
-                                    val channel = channels[index] ?: return@items
-                                    ChannelRow(
-                                        position = index + 1,
-                                        channel = channel,
-                                        imageLoader = imageLoader,
-                                        focusRequester =
-                                            if (channel.id.value == focusedChannelId) rowFocus else null,
-                                        onFocused = {
-                                            focusedChannelId = channel.id.value
-                                            viewModel.onIntent(ChannelsIntent.ChannelFocused(channel))
-                                        },
-                                        onClick = {
-                                            playOn(channel)
-                                            expanded = true
-                                        },
-                                    )
-                                }
-                            }
-                    }
-                }
-                AnimatedVisibility(
-                    visible = previewChannel != null,
-                    enter = slideInHorizontally(tween(280)) { it / 3 } + fadeIn(tween(280)),
-                    exit = slideOutHorizontally(tween(220)) { it / 3 } + fadeOut(tween(220)),
-                ) {
-                    PreviewPanel(
-                        channel = previewChannel,
-                        epg = previewEpg,
-                        imageLoader = imageLoader,
-                        onSlotBounds = { slotRect = it },
-                        modifier = Modifier.width(PREVIEW_WIDTH.dp).fillMaxHeight().padding(start = 28.dp),
+                if (categories.isNotEmpty()) {
+                    CategoryRail(
+                        categories = categories,
+                        selected = state.selectedCategory,
+                        onSelect = { viewModel.onIntent(ChannelsIntent.CategorySelected(it)) },
                     )
                 }
+                state.errorMessage?.let { message ->
+                    Text(text = message, color = ERROR_RED, modifier = Modifier.padding(top = 12.dp))
+                }
+
+                val refreshing = channels.loadState.refresh is LoadState.Loading
+                Row(modifier = Modifier.fillMaxSize().padding(top = 20.dp)) {
+                    Box(
+                        modifier =
+                            Modifier
+                                .weight(1f)
+                                .fillMaxHeight()
+                                .onPreviewKeyEvent { event ->
+                                    // Left from anywhere in the list jumps to search/filters.
+                                    if (event.type == KeyEventType.KeyDown && event.key == Key.DirectionLeft) {
+                                        runCatching { searchFocus.requestFocus() }
+                                        true
+                                    } else {
+                                        false
+                                    }
+                                },
+                    ) {
+                        when {
+                            channels.itemCount == 0 && refreshing -> CenterMessage("Chargement…")
+                            channels.itemCount == 0 ->
+                                CenterMessage("Aucune chaîne. Change la source pour en importer.")
+                            else ->
+                                LazyColumn(
+                                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                                    contentPadding = PaddingValues(bottom = 56.dp),
+                                ) {
+                                    items(
+                                        count = channels.itemCount,
+                                        key = channels.itemKey { it.id.value },
+                                        contentType = channels.itemContentType { "channel" },
+                                    ) { index ->
+                                        val channel = channels[index] ?: return@items
+                                        ChannelRow(
+                                            position = index + 1,
+                                            channel = channel,
+                                            imageLoader = imageLoader,
+                                            focusRequester =
+                                                if (channel.id.value == focusedChannelId) rowFocus else null,
+                                            onFocused = {
+                                                focusedChannelId = channel.id.value
+                                                viewModel.onIntent(ChannelsIntent.ChannelFocused(channel))
+                                            },
+                                            onClick = {
+                                                playOn(channel)
+                                                expanded = true
+                                            },
+                                        )
+                                    }
+                                }
+                        }
+                    }
+                    AnimatedVisibility(
+                        visible = previewChannel != null,
+                        enter = slideInHorizontally(tween(280)) { it / 3 } + fadeIn(tween(280)),
+                        exit = slideOutHorizontally(tween(220)) { it / 3 } + fadeOut(tween(220)),
+                    ) {
+                        PreviewPanel(
+                            channel = previewChannel,
+                            epg = previewEpg,
+                            imageLoader = imageLoader,
+                            onSlotBounds = { slotRect = it },
+                            modifier = Modifier.width(PREVIEW_WIDTH.dp).fillMaxHeight().padding(start = 28.dp),
+                        )
+                    }
+                }
             }
-        }
 
             // Black scrim behind the player as it grows to fullscreen.
             if (expandProgress > 0.001f) {
@@ -361,8 +361,14 @@ private fun FloatingPlayer(
                 .onKeyEvent { event ->
                     if (event.type != KeyEventType.KeyDown) return@onKeyEvent false
                     when (event.key) {
-                        Key.Back -> { onBack(); true }
-                        Key.DirectionCenter, Key.Enter -> { onToggle(); true }
+                        Key.Back -> {
+                            onBack()
+                            true
+                        }
+                        Key.DirectionCenter, Key.Enter -> {
+                            onToggle()
+                            true
+                        }
                         else -> false
                     }
                 }
@@ -436,23 +442,27 @@ private fun PreviewPanel(
                     .border(1.dp, LOGO_BORDER, RoundedCornerShape(16.dp)),
             contentAlignment = Alignment.Center,
         ) {
-                if (channel.logoUrl != null) {
-                    AsyncImage(
-                        model = channel.logoUrl,
-                        imageLoader = imageLoader,
-                        contentDescription = channel.name,
-                        contentScale = ContentScale.Fit,
-                        modifier = Modifier.fillMaxSize().padding(24.dp),
-                    )
-                } else {
-                    Text(
-                        text = channel.displayName.ifBlank { channel.name }.take(1).uppercase(),
-                        color = Color.White,
-                        fontSize = 44.sp,
-                        fontWeight = FontWeight.Bold,
-                    )
-                }
+            if (channel.logoUrl != null) {
+                AsyncImage(
+                    model = channel.logoUrl,
+                    imageLoader = imageLoader,
+                    contentDescription = channel.name,
+                    contentScale = ContentScale.Fit,
+                    modifier = Modifier.fillMaxSize().padding(24.dp),
+                )
+            } else {
+                Text(
+                    text =
+                        channel.displayName
+                            .ifBlank { channel.name }
+                            .take(1)
+                            .uppercase(),
+                    color = Color.White,
+                    fontSize = 44.sp,
+                    fontWeight = FontWeight.Bold,
+                )
             }
+        }
 
         if (current != null) {
             Text(text = current.title, color = Color.White, fontSize = 16.sp, maxLines = 2)
@@ -679,7 +689,11 @@ private fun LogoBox(
             )
         } else {
             Text(
-                text = channel.displayName.ifBlank { channel.name }.take(1).uppercase(),
+                text =
+                    channel.displayName
+                        .ifBlank { channel.name }
+                        .take(1)
+                        .uppercase(),
                 color = Color.White,
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold,

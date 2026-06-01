@@ -2,13 +2,13 @@ package dev.strix.feature.player
 
 import android.os.SystemClock
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.focusable
@@ -36,8 +36,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Brush
@@ -197,7 +197,11 @@ fun PlayerScreen(
     // to it only when the format doesn't report a bitrate.
     LaunchedEffect(controlsVisible) {
         while (controlsVisible) {
-            val streamBitrate = player.videoFormat?.bitrate?.takeIf { it > 0 }?.toLong()
+            val streamBitrate =
+                player.videoFormat
+                    ?.bitrate
+                    ?.takeIf { it > 0 }
+                    ?.toLong()
             bitrateBps = streamBitrate ?: bandwidthMeter.bitrateEstimate
             delay(BITRATE_POLL_MS)
         }
@@ -222,16 +226,35 @@ fun PlayerScreen(
                         showResync = false
                     }
                     when (event.key) {
-                        Key.DirectionDown -> { viewModel.zap(1); reveal(); true }
-                        Key.DirectionUp -> { viewModel.zap(-1); reveal(); true }
-                        Key.DirectionLeft -> { viewModel.cycleQuality(-1); reveal(); true }
-                        Key.DirectionRight -> { viewModel.cycleQuality(1); reveal(); true }
+                        Key.DirectionDown -> {
+                            viewModel.zap(1)
+                            reveal()
+                            true
+                        }
+                        Key.DirectionUp -> {
+                            viewModel.zap(-1)
+                            reveal()
+                            true
+                        }
+                        Key.DirectionLeft -> {
+                            viewModel.cycleQuality(-1)
+                            reveal()
+                            true
+                        }
+                        Key.DirectionRight -> {
+                            viewModel.cycleQuality(1)
+                            reveal()
+                            true
+                        }
                         Key.DirectionCenter, Key.Enter -> {
                             if (player.isPlaying) player.pause() else player.play()
                             reveal()
                             true
                         }
-                        else -> { reveal(); false }
+                        else -> {
+                            reveal()
+                            false
+                        }
                     }
                 },
     ) {

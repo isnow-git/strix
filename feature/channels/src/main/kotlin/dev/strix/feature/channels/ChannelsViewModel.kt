@@ -58,6 +58,7 @@ class ChannelsViewModel
         /** A muted player for the side preview; owned/released by the screen. */
         @UnstableApi
         fun createPreviewPlayer(): ExoPlayer = playerFactory.create()
+
         private val query = MutableStateFlow("")
         private val refreshing = MutableStateFlow(false)
         private val error = MutableStateFlow<String?>(null)
