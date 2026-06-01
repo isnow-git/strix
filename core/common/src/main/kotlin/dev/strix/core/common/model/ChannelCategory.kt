@@ -74,7 +74,10 @@ object ChannelClassifier {
             ChannelCategory.Kids to
                 keywords("disney junior", "boomerang", "gulli", "cartoon", "nickelodeon", "piwi", "tiji", "junior"),
             ChannelCategory.Sport to
-                keywords("sport", "bein", "eurosport", "espn", "dazn", "rmc sport", "foot", "rugby", "nba", "ufc"),
+                keywords(
+                    "sport", "bein", "eurosport", "espn", "dazn", "rmc sport", "foot", "rugby",
+                    "nba", "ufc", "tennis", "roland garros", "wimbledon", "golf", "f1", "motogp",
+                ),
             ChannelCategory.News to
                 keywords("bfm", "lci", "cnn", "franceinfo", "france info", "euronews", "i24", "news", "actualit"),
             ChannelCategory.Docs to

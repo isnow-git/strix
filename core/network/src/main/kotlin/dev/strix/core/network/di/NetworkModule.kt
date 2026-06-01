@@ -24,9 +24,8 @@ object NetworkModule {
     private const val MAX_IDLE_CONNECTIONS = 5
     private const val KEEP_ALIVE_MINUTES = 5L
     private const val CONNECT_TIMEOUT_SECONDS = 10L
-    private const val READ_TIMEOUT_SECONDS = 15L
+    private const val READ_TIMEOUT_SECONDS = 20L
     private const val WRITE_TIMEOUT_SECONDS = 15L
-    private const val CALL_TIMEOUT_SECONDS = 30L
 
     @Provides
     @Singleton
@@ -37,7 +36,9 @@ object NetworkModule {
             .connectTimeout(CONNECT_TIMEOUT_SECONDS, TimeUnit.SECONDS)
             .readTimeout(READ_TIMEOUT_SECONDS, TimeUnit.SECONDS)
             .writeTimeout(WRITE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
-            .callTimeout(CALL_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+            // No overall call timeout: a large playlist or guide download can take
+            // longer than a single API call without being a stall (the read
+            // timeout still guards a truly stuck transfer).
             .retryOnConnectionFailure(true)
             .build()
 }
