@@ -21,8 +21,14 @@ import kotlinx.coroutines.flow.Flow
  */
 @Dao
 interface ChannelDao {
-    /** One representative (best-quality) row per channel, in playlist order. */
-    @Query("SELECT * FROM channels WHERE isPrimary = 1 ORDER BY sortIndex ASC")
+    /**
+     * One representative row per channel: adult hidden, generalist channels first,
+     * then playlist order.
+     */
+    @Query(
+        "SELECT * FROM channels WHERE isPrimary = 1 AND category != 'Adulte' " +
+            "ORDER BY (category = 'Général') DESC, sortIndex ASC",
+    )
     fun pagingSource(): PagingSource<Int, ChannelEntity>
 
     /** Representative rows of a single canonical category, in playlist order. */
@@ -37,8 +43,11 @@ interface ChannelDao {
     )
     suspend fun variantsOf(channelId: String): List<ChannelEntity>
 
-    /** Distinct canonical categories present (only among representative rows). */
-    @Query("SELECT DISTINCT category FROM channels WHERE isPrimary = 1")
+    /**
+     * Distinct categories for the rail — excludes Adulte (hidden) and Général
+     * (the "Toutes" view already shows generalist channels first).
+     */
+    @Query("SELECT DISTINCT category FROM channels WHERE isPrimary = 1 AND category NOT IN ('Adulte', 'Général')")
     fun observeCategories(): Flow<List<String>>
 
     /**
@@ -49,7 +58,7 @@ interface ChannelDao {
         """
         SELECT c.* FROM channels AS c
         JOIN channels_fts AS f ON f.channelId = c.channelId
-        WHERE channels_fts MATCH :match AND c.isPrimary = 1
+        WHERE channels_fts MATCH :match AND c.isPrimary = 1 AND c.category != 'Adulte'
         ORDER BY c.sortIndex ASC
         """,
     )

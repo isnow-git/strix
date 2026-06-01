@@ -286,9 +286,6 @@ private fun ChannelRow(
                 maxLines = 1,
                 modifier = Modifier.weight(1f),
             )
-            channel.qualityLabel?.let { quality ->
-                Text(text = quality, color = MUTED, fontSize = 12.sp)
-            }
             channel.number?.let { number ->
                 Text(text = "$number", color = MUTED, fontSize = 13.sp)
             }
