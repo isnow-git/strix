@@ -12,6 +12,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -273,25 +274,28 @@ private fun PreviewPanel(
             modifier =
                 Modifier
                     .fillMaxWidth()
-                    .height(150.dp)
+                    .aspectRatio(16f / 9f)
                     .clip(RoundedCornerShape(16.dp)),
         ) {
-            // Video sits behind, filling the frame (cropped to fill).
-            AndroidView(
-                modifier = Modifier.fillMaxSize(),
-                factory = { context ->
-                    PlayerView(context).apply {
-                        useController = false
-                        resizeMode = AspectRatioFrameLayout.RESIZE_MODE_ZOOM
-                        setPlayer(player)
-                    }
-                },
-                update = { it.setPlayer(player) },
-            )
-            // Logo on top; fades out to reveal the video once it's ready.
+            // Video sits behind, fit to the 16:9 frame (no crop), rendered only
+            // once it's ready so a previous channel's frozen frame never shows.
+            if (showVideo) {
+                AndroidView(
+                    modifier = Modifier.fillMaxSize(),
+                    factory = { context ->
+                        PlayerView(context).apply {
+                            useController = false
+                            resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
+                            setPlayer(player)
+                        }
+                    },
+                    update = { it.setPlayer(player) },
+                )
+            }
+            // Logo covers instantly on change, then fades out to reveal the video.
             val logoAlpha by animateFloatAsState(
                 targetValue = if (showVideo) 0f else 1f,
-                animationSpec = tween(durationMillis = 450),
+                animationSpec = tween(durationMillis = if (showVideo) 450 else 0),
                 label = "previewLogo",
             )
             Box(
