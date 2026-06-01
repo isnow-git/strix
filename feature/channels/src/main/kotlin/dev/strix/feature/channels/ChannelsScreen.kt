@@ -1,8 +1,19 @@
 package dev.strix.feature.channels
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -18,6 +29,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -58,6 +70,7 @@ import dev.strix.core.ui.focus.focusRing
 import dev.strix.core.ui.glass.glass
 import dev.strix.core.ui.image.rememberStrixImageLoader
 import dev.strix.core.ui.theme.StrixTheme
+import kotlinx.coroutines.delay
 
 /**
  * Channel browser: a clean glass list, one channel per row, with a canonical
@@ -110,8 +123,8 @@ fun ChannelsScreen(
                 Box(
                     modifier =
                         Modifier
-                            .weight(0.62f)
-                            .fillMaxSize()
+                            .weight(1f)
+                            .fillMaxHeight()
                             .onPreviewKeyEvent { event ->
                                 // Left from anywhere in the list jumps to search/filters.
                                 if (event.type == KeyEventType.KeyDown && event.key == Key.DirectionLeft) {
@@ -127,7 +140,10 @@ fun ChannelsScreen(
                         channels.itemCount == 0 ->
                             CenterMessage("Aucune chaîne. Change la source pour en importer.")
                         else ->
-                            LazyColumn(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            LazyColumn(
+                                verticalArrangement = Arrangement.spacedBy(6.dp),
+                                contentPadding = PaddingValues(bottom = 28.dp),
+                            ) {
                                 items(
                                     count = channels.itemCount,
                                     key = channels.itemKey { it.id.value },
@@ -147,12 +163,18 @@ fun ChannelsScreen(
                             }
                     }
                 }
-                PreviewPanel(
-                    channel = previewChannel,
-                    epg = previewEpg,
-                    imageLoader = imageLoader,
-                    modifier = Modifier.weight(0.38f).fillMaxSize().padding(start = 28.dp),
-                )
+                AnimatedVisibility(
+                    visible = previewChannel != null,
+                    enter = slideInHorizontally(tween(280)) { it / 3 } + fadeIn(tween(280)),
+                    exit = slideOutHorizontally(tween(220)) { it / 3 } + fadeOut(tween(220)),
+                ) {
+                    PreviewPanel(
+                        channel = previewChannel,
+                        epg = previewEpg,
+                        imageLoader = imageLoader,
+                        modifier = Modifier.width(PREVIEW_WIDTH.dp).fillMaxHeight().padding(start = 28.dp),
+                    )
+                }
             }
         }
     }
@@ -165,22 +187,35 @@ private fun PreviewPanel(
     imageLoader: ImageLoader,
     modifier: Modifier = Modifier,
 ) {
+    channel ?: return
+    val current = epg?.current
+    val description = current?.description
+
+    val descScroll = rememberScrollState()
+    // After a pause, slowly scroll the description so it can be read in full.
+    LaunchedEffect(description) {
+        descScroll.scrollTo(0)
+        if (!description.isNullOrBlank()) {
+            delay(DESC_SCROLL_DELAY_MS)
+            val max = descScroll.maxValue
+            if (max > 0) {
+                descScroll.animateScrollTo(
+                    max,
+                    tween(durationMillis = max * DESC_SCROLL_MS_PER_PX, easing = LinearEasing),
+                )
+            }
+        }
+    }
+
     Column(
         modifier = modifier.glass(RoundedCornerShape(24.dp)).padding(24.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
-        if (channel == null) {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text(text = "Survole une chaîne", color = MUTED, fontSize = 14.sp)
-            }
-            return@Column
-        }
-
         Box(
             modifier =
                 Modifier
                     .fillMaxWidth()
-                    .height(120.dp)
+                    .height(150.dp)
                     .clip(RoundedCornerShape(16.dp))
                     .background(LOGO_BG)
                     .border(1.dp, LOGO_BORDER, RoundedCornerShape(16.dp)),
@@ -192,13 +227,13 @@ private fun PreviewPanel(
                     imageLoader = imageLoader,
                     contentDescription = channel.name,
                     contentScale = ContentScale.Fit,
-                    modifier = Modifier.fillMaxSize().padding(20.dp),
+                    modifier = Modifier.fillMaxSize().padding(24.dp),
                 )
             } else {
                 Text(
                     text = channel.displayName.ifBlank { channel.name }.take(1).uppercase(),
                     color = Color.White,
-                    fontSize = 40.sp,
+                    fontSize = 44.sp,
                     fontWeight = FontWeight.Bold,
                 )
             }
@@ -212,15 +247,20 @@ private fun PreviewPanel(
             maxLines = 1,
         )
 
-        val current = epg?.current
         if (current != null) {
             Text(text = current.title, color = Color.White, fontSize = 16.sp, maxLines = 2)
-            current.description?.let { description ->
-                Text(text = description, color = MUTED, fontSize = 13.sp, maxLines = 6)
-            }
         } else {
             Text(text = "Programme indisponible", color = MUTED, fontSize = 13.sp)
         }
+
+        if (!description.isNullOrBlank()) {
+            Box(modifier = Modifier.weight(1f).fillMaxWidth().verticalScroll(descScroll)) {
+                Text(text = description, color = MUTED, fontSize = 13.sp, lineHeight = 19.sp)
+            }
+        } else {
+            Box(modifier = Modifier.weight(1f))
+        }
+
         epg?.next?.let { next ->
             Text(text = "Puis · ${next.title}", color = MUTED, fontSize = 12.sp, maxLines = 1)
         }
@@ -449,6 +489,9 @@ private fun transparentSurfaceColors() =
 
 private const val ROW_HEIGHT = 64
 private const val LOGO_SIZE = 52
+private const val PREVIEW_WIDTH = 380
+private const val DESC_SCROLL_DELAY_MS = 2_000L
+private const val DESC_SCROLL_MS_PER_PX = 40
 
 private val BACKGROUND = Color(0xFF0B0B0F)
 private val BACKGROUND_TOP = Color(0xFF15151F)
