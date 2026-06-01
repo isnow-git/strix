@@ -2,6 +2,7 @@ package dev.strix.feature.channels
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -29,13 +30,24 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.media3.common.MediaItem
+import androidx.media3.common.PlaybackException
+import androidx.media3.common.Player
+import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.ui.PlayerView
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -91,6 +103,47 @@ fun ChannelsScreen(
     val channels = viewModel.pagedChannels.collectAsLazyPagingItems()
     val imageLoader = rememberStrixImageLoader()
     val searchFocus = remember { FocusRequester() }
+
+    val previewPlayer = remember { viewModel.createPreviewPlayer().apply { volume = 0f } }
+    var showVideo by remember { mutableStateOf(false) }
+    val lifecycleOwner = LocalLifecycleOwner.current
+
+    DisposableEffect(previewPlayer) {
+        val listener =
+            object : Player.Listener {
+                override fun onPlaybackStateChanged(state: Int) {
+                    if (state == Player.STATE_READY) showVideo = true
+                }
+
+                override fun onPlayerError(error: PlaybackException) {
+                    showVideo = false
+                }
+            }
+        previewPlayer.addListener(listener)
+        onDispose {
+            previewPlayer.removeListener(listener)
+            previewPlayer.release()
+        }
+    }
+    DisposableEffect(lifecycleOwner) {
+        val observer =
+            LifecycleEventObserver { _, event ->
+                if (event == Lifecycle.Event.ON_STOP) previewPlayer.pause()
+            }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+    // After a longer pause on the focused channel, play its stream (muted) in the
+    // preview; the logo shows until the video is ready, then it fades in.
+    LaunchedEffect(previewChannel) {
+        showVideo = false
+        previewPlayer.stop()
+        val channel = previewChannel ?: return@LaunchedEffect
+        delay(PREVIEW_VIDEO_DELAY_MS)
+        previewPlayer.setMediaItem(MediaItem.fromUri(channel.streamUrl))
+        previewPlayer.prepare()
+        previewPlayer.playWhenReady = true
+    }
 
     StrixTheme {
         Column(
@@ -172,6 +225,8 @@ fun ChannelsScreen(
                         channel = previewChannel,
                         epg = previewEpg,
                         imageLoader = imageLoader,
+                        player = previewPlayer,
+                        showVideo = showVideo,
                         modifier = Modifier.width(PREVIEW_WIDTH.dp).fillMaxHeight().padding(start = 28.dp),
                     )
                 }
@@ -185,6 +240,8 @@ private fun PreviewPanel(
     channel: Channel?,
     epg: NowNext?,
     imageLoader: ImageLoader,
+    player: ExoPlayer,
+    showVideo: Boolean,
     modifier: Modifier = Modifier,
 ) {
     channel ?: return
@@ -235,6 +292,24 @@ private fun PreviewPanel(
                     color = Color.White,
                     fontSize = 44.sp,
                     fontWeight = FontWeight.Bold,
+                )
+            }
+            // Live preview fades in over the logo once the stream is ready.
+            val videoAlpha by animateFloatAsState(
+                targetValue = if (showVideo) 1f else 0f,
+                animationSpec = tween(durationMillis = 450),
+                label = "previewVideo",
+            )
+            if (videoAlpha > 0.01f) {
+                AndroidView(
+                    modifier = Modifier.fillMaxSize().alpha(videoAlpha),
+                    factory = { context ->
+                        PlayerView(context).apply {
+                            useController = false
+                            setPlayer(player)
+                        }
+                    },
+                    update = { it.setPlayer(player) },
                 )
             }
         }
@@ -490,6 +565,7 @@ private fun transparentSurfaceColors() =
 private const val ROW_HEIGHT = 64
 private const val LOGO_SIZE = 52
 private const val PREVIEW_WIDTH = 380
+private const val PREVIEW_VIDEO_DELAY_MS = 1_300L
 private const val DESC_SCROLL_DELAY_MS = 2_000L
 private const val DESC_SCROLL_MS_PER_PX = 40
 

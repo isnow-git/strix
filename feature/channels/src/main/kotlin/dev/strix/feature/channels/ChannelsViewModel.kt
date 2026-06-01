@@ -2,6 +2,8 @@ package dev.strix.feature.channels
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.media3.common.util.UnstableApi
+import androidx.media3.exoplayer.ExoPlayer
 import androidx.paging.PagingData
 import androidx.paging.cachedIn
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -13,6 +15,7 @@ import dev.strix.core.common.model.StreamSourceConfig
 import dev.strix.core.common.repository.ChannelRepository
 import dev.strix.core.common.result.StrixResult
 import dev.strix.core.data.ChannelPagingRepository
+import dev.strix.core.player.StrixPlayerFactory
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.Flow
@@ -50,7 +53,11 @@ class ChannelsViewModel
         private val pagingRepository: ChannelPagingRepository,
         private val channelRepository: ChannelRepository,
         private val epgRepository: EpgRepository,
+        private val playerFactory: StrixPlayerFactory,
     ) : ViewModel() {
+        /** A muted player for the side preview; owned/released by the screen. */
+        @UnstableApi
+        fun createPreviewPlayer(): ExoPlayer = playerFactory.create()
         private val query = MutableStateFlow("")
         private val refreshing = MutableStateFlow(false)
         private val error = MutableStateFlow<String?>(null)

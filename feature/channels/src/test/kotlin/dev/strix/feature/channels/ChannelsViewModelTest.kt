@@ -46,6 +46,12 @@ class ChannelsViewModelTest {
             override suspend fun refresh() = Unit
         }
 
+    @androidx.media3.common.util.UnstableApi
+    private val playerFactory =
+        object : dev.strix.core.player.StrixPlayerFactory {
+            override fun create() = error("preview player is not used in these tests")
+        }
+
     private class FakeChannelRepository(
         var refreshResult: StrixResult<Int> = 0.asSuccess(),
     ) : ChannelRepository {
@@ -72,8 +78,9 @@ class ChannelsViewModelTest {
         Dispatchers.resetMain()
     }
 
+    @androidx.media3.common.util.UnstableApi
     private fun viewModel(repo: ChannelRepository = FakeChannelRepository()) =
-        ChannelsViewModel(pagingRepository, repo, epgRepository)
+        ChannelsViewModel(pagingRepository, repo, epgRepository, playerFactory)
 
     @Test
     fun `search intent updates the query in state`() =
