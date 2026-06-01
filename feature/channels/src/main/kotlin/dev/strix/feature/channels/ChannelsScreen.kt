@@ -106,7 +106,7 @@ fun ChannelsScreen(
     val imageLoader = rememberStrixImageLoader()
     val searchFocus = remember { FocusRequester() }
 
-    val previewPlayer = remember { viewModel.createPreviewPlayer().apply { volume = 0f } }
+    val previewPlayer = remember { viewModel.createPreviewPlayer() }
     var showVideo by remember { mutableStateOf(false) }
     val lifecycleOwner = LocalLifecycleOwner.current
 
@@ -130,7 +130,13 @@ fun ChannelsScreen(
     DisposableEffect(lifecycleOwner) {
         val observer =
             LifecycleEventObserver { _, event ->
-                if (event == Lifecycle.Event.ON_STOP) previewPlayer.pause()
+                // Pause (and mute the audio leak) when leaving for the full player;
+                // resume when coming back so the preview keeps its sound.
+                when (event) {
+                    Lifecycle.Event.ON_PAUSE -> previewPlayer.pause()
+                    Lifecycle.Event.ON_RESUME -> if (previewPlayer.mediaItemCount > 0) previewPlayer.play()
+                    else -> Unit
+                }
             }
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
@@ -295,7 +301,7 @@ private fun PreviewPanel(
             // Logo covers instantly on change, then fades out to reveal the video.
             val logoAlpha by animateFloatAsState(
                 targetValue = if (showVideo) 0f else 1f,
-                animationSpec = tween(durationMillis = if (showVideo) 450 else 0),
+                animationSpec = tween(durationMillis = if (showVideo) 900 else 0, easing = LinearEasing),
                 label = "previewLogo",
             )
             Box(
