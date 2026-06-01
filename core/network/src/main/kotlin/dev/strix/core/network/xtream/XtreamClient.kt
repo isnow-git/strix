@@ -2,11 +2,14 @@ package dev.strix.core.network.xtream
 
 import dev.strix.core.common.model.Channel
 import dev.strix.core.common.model.StreamSourceConfig
+import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.decodeFromStream
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.io.IOException
+import java.io.InputStream
 import java.net.URLEncoder
 import javax.inject.Inject
 
@@ -59,22 +62,26 @@ class XtreamClient
             return decode<XtreamEpgResponse>(url).listings
         }
 
+        @OptIn(ExperimentalSerializationApi::class)
         private inline fun <reified T> decodeList(url: String): List<T> =
-            decodeBody(url) { json.decodeFromString<List<T>>(it) }
+            decodeBody(url) { json.decodeFromStream<List<T>>(it) }
 
-        private inline fun <reified T> decode(url: String): T =
-            decodeBody(url) { json.decodeFromString<T>(it) }
+        @OptIn(ExperimentalSerializationApi::class)
+        private inline fun <reified T> decode(url: String): T = decodeBody(url) { json.decodeFromStream<T>(it) }
 
+        // Decodes straight off the response stream — the live-stream list can be
+        // several MB, and materializing it as a String first would double the peak
+        // memory for nothing on a low-RAM TV.
         private inline fun <T> decodeBody(
             url: String,
-            decode: (String) -> T,
+            decode: (InputStream) -> T,
         ): T {
             val request = Request.Builder().url(url).build()
             return client.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) throw IOException("Unexpected HTTP ${response.code}")
-                val body = response.body?.string() ?: throw IOException("Empty Xtream response")
+                val stream = response.body?.byteStream() ?: throw IOException("Empty Xtream response")
                 try {
-                    decode(body)
+                    decode(stream)
                 } catch (e: SerializationException) {
                     throw IOException("Réponse Xtream invalide (provider injoignable ?)", e)
                 }

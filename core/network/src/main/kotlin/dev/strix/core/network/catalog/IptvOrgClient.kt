@@ -2,8 +2,10 @@ package dev.strix.core.network.catalog
 
 import dev.strix.core.common.epg.normalizeEpgId
 import dev.strix.core.common.model.ChannelCategory
+import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.decodeFromStream
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.io.IOException
@@ -29,22 +31,27 @@ class IptvOrgClient
         private val json = Json { ignoreUnknownKeys = true }
 
         /** @return normalized channel id -> canonical category label. Blocking. */
+        @OptIn(ExperimentalSerializationApi::class)
         fun categoryMap(): Map<String, String> {
             val request = Request.Builder().url(CHANNELS_URL).build()
             return client.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) throw IOException("Unexpected HTTP ${response.code}")
-                val body = response.body?.string() ?: throw IOException("Empty iptv-org response")
+                // channels.json is multi-MB; decode off the stream rather than
+                // buffering the whole payload into a String first.
+                val stream = response.body?.byteStream() ?: throw IOException("Empty iptv-org response")
                 val channels =
                     try {
-                        json.decodeFromString<List<IptvOrgChannel>>(body)
+                        json.decodeFromStream<List<IptvOrgChannel>>(stream)
                     } catch (e: SerializationException) {
                         throw IOException("Invalid iptv-org payload", e)
                     }
                 val out = HashMap<String, String>(channels.size)
                 for (channel in channels) {
-                    val id = channel.id ?: continue
-                    val category = ChannelCategory.fromIptvOrg(channel.categories) ?: continue
-                    out[normalizeEpgId(id)] = category.label
+                    val id = channel.id
+                    val category = id?.let { ChannelCategory.fromIptvOrg(channel.categories) }
+                    if (id != null && category != null) {
+                        out[normalizeEpgId(id)] = category.label
+                    }
                 }
                 out
             }

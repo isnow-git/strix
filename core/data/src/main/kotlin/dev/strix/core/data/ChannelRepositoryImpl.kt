@@ -29,6 +29,7 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.io.IOException
 import javax.inject.Inject
+import javax.inject.Singleton
 
 /**
  * Default [ChannelRepository] + [ChannelPagingRepository].
@@ -37,7 +38,12 @@ import javax.inject.Inject
  * over OkHttp, parses it line by line, and writes it to Room in batches
  * ([PlaylistImporter]) so a large playlist is never held whole in RAM. The
  * Xtream path resolves channels through [XtreamClient] instead of parsing M3U.
+ *
+ * `@Singleton` so the two interface bindings ([ChannelRepository] and
+ * [ChannelPagingRepository]) resolve to the *same* instance — sharing the parser,
+ * importer and session-scoped [categoryCache] instead of building two of each.
  */
+@Singleton
 class ChannelRepositoryImpl
     @Inject
     constructor(
@@ -61,8 +67,8 @@ class ChannelRepositoryImpl
                 val fetched =
                     try {
                         iptvOrgClient.categoryMap()
-                    } catch (e: IOException) {
-                        emptyMap()
+                    } catch (ignored: IOException) {
+                        emptyMap() // best-effort: no iptv-org → keyword classifier wins
                     }
                 categoryCache = fetched
                 fetched

@@ -101,8 +101,8 @@ class EpgRepositoryImpl
                         xtreamClient.fullEpg(config, sourceStreamId)
                     }
                 toNowNext(entries, refSec)
-            } catch (e: IOException) {
-                null
+            } catch (ignored: IOException) {
+                null // provider EPG unavailable → caller falls back to none
             }
         }
 
@@ -115,10 +115,26 @@ class EpgRepositoryImpl
                     okHttpClient.newCall(request).execute().use { response ->
                         if (!response.isSuccessful) return@withContext
                         val body = response.body ?: return@withContext
-                        val collected = ArrayList<EpgProgrammeEntity>()
+                        // Stream the guide straight into Room in fixed-size batches:
+                        // the buffer never holds more than INSERT_BATCH rows, so the
+                        // whole guide (thousands of programmes) is never in RAM at once.
+                        // The old guide is cleared only when the first batch is ready,
+                        // so a failed/empty download leaves the previous one intact.
+                        val batch = ArrayList<EpgProgrammeEntity>(INSERT_BATCH)
+                        var cleared = false
+
+                        suspend fun flush() {
+                            if (batch.isEmpty()) return
+                            if (!cleared) {
+                                epgDao.clear()
+                                cleared = true
+                            }
+                            epgDao.insertBatch(batch)
+                            batch.clear()
+                        }
                         GZIPInputStream(body.byteStream()).use { stream ->
                             xmltvParser.parse(stream, keep = { it in ids }) { programme ->
-                                collected +=
+                                batch +=
                                     EpgProgrammeEntity(
                                         normChannelId = programme.normChannelId,
                                         startSec = programme.startSec,
@@ -126,13 +142,13 @@ class EpgRepositoryImpl
                                         title = programme.title,
                                         description = programme.description,
                                     )
+                                if (batch.size >= INSERT_BATCH) flush()
                             }
                         }
-                        epgDao.clear()
-                        collected.chunked(INSERT_BATCH).forEach { epgDao.insertBatch(it) }
-                        cache.clear()
+                        flush()
+                        if (cleared) cache.clear()
                     }
-                } catch (e: IOException) {
+                } catch (ignored: IOException) {
                     // No XMLTV this time; the provider fallback still serves EPG.
                 }
             }
@@ -165,7 +181,7 @@ class EpgRepositoryImpl
         private fun decodeBase64(value: String): String? =
             try {
                 String(Base64.getMimeDecoder().decode(value.trim()), Charsets.UTF_8)
-            } catch (e: Exception) {
+            } catch (ignored: Exception) {
                 null
             }
 

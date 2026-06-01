@@ -4,9 +4,9 @@ import android.util.Xml
 import dev.strix.core.common.epg.normalizeEpgId
 import org.xmlpull.v1.XmlPullParser
 import java.io.InputStream
-import java.text.SimpleDateFormat
-import java.util.Locale
-import java.util.TimeZone
+import java.time.DateTimeException
+import java.time.LocalDateTime
+import java.time.ZoneOffset
 
 /** One parsed XMLTV programme. Channel id is already normalized. */
 data class XmltvProgramme(
@@ -24,13 +24,16 @@ data class XmltvProgramme(
  */
 class XmltvParser {
     /**
-     * Parses [input] and calls [onProgramme] for each kept programme. The caller
-     * is expected to batch writes; this never builds a list.
+     * Parses [input] and calls [onProgramme] for each kept programme. The callback
+     * is `suspend` so the caller can flush each batch straight to storage from
+     * inside the stream, keeping ingestion O(batch) instead of buffering the whole
+     * guide. This never builds a list itself.
      */
-    fun parse(
+    @Suppress("CyclomaticComplexMethod", "NestedBlockDepth") // irreducible pull-parser state machine
+    suspend fun parse(
         input: InputStream,
         keep: (String) -> Boolean,
-        onProgramme: (XmltvProgramme) -> Unit,
+        onProgramme: suspend (XmltvProgramme) -> Unit,
     ) {
         val parser = Xml.newPullParser()
         parser.setInput(input, null)
@@ -82,22 +85,66 @@ class XmltvParser {
     }
 
     // XMLTV time: "20260601181000 +0200" (or without offset → treated as UTC).
+    // Parsed by hand straight to epoch seconds: this runs twice per programme
+    // (tens of thousands of times on a full guide), so a SimpleDateFormat per call
+    // — which builds a Calendar and re-parses its pattern every time — would be the
+    // hot spot. No substring/format allocation here.
     private fun parseTime(value: String?): Long {
-        val text = value?.trim().orEmpty()
-        if (text.length < TS_DIGITS) return 0L
+        val text = value ?: return 0L
+        var i = 0
+        while (i < text.length && text[i] == ' ') i++
+        val f = parseDateTimeFields(text, i) ?: return 0L
         return try {
-            if (text.length > TS_DIGITS) {
-                SimpleDateFormat("yyyyMMddHHmmss Z", Locale.US).parse(text)?.time?.div(1000) ?: 0L
-            } else {
-                SimpleDateFormat("yyyyMMddHHmmss", Locale.US)
-                    .apply { timeZone = TimeZone.getTimeZone("UTC") }
-                    .parse(text)
-                    ?.time
-                    ?.div(1000) ?: 0L
-            }
-        } catch (e: java.text.ParseException) {
-            0L
+            LocalDateTime
+                .of(f[YEAR], f[MONTH], f[DAY], f[HOUR], f[MINUTE], f[SECOND])
+                .toEpochSecond(ZoneOffset.ofTotalSeconds(zoneOffsetSeconds(text, i + TS_DIGITS)))
+        } catch (ignored: DateTimeException) {
+            0L // out-of-range field or offset → treat as unknown time
         }
+    }
+
+    /** Parses the 14 contiguous digits "yyyyMMddHHmmss" from [from] into fields, or null. */
+    private fun parseDateTimeFields(
+        text: String,
+        from: Int,
+    ): IntArray? {
+        val out = IntArray(FIELD_WIDTHS.size)
+        var pos = from
+        for (k in FIELD_WIDTHS.indices) {
+            out[k] = parseDigits(text, pos, FIELD_WIDTHS[k]) ?: return null
+            pos += FIELD_WIDTHS[k]
+        }
+        return out
+    }
+
+    /** Parses an optional XMLTV "[ ]±HHMM" timezone offset to seconds; 0 (UTC) if absent. */
+    private fun zoneOffsetSeconds(
+        text: String,
+        from: Int,
+    ): Int {
+        var i = from
+        while (i < text.length && text[i] == ' ') i++
+        if (i >= text.length || (text[i] != '+' && text[i] != '-')) return 0
+        val sign = if (text[i] == '-') -1 else 1
+        val offHours = parseDigits(text, i + 1, 2) ?: 0
+        val offMins = parseDigits(text, i + 3, 2) ?: 0
+        return sign * (offHours * SECONDS_PER_HOUR + offMins * SECONDS_PER_MINUTE)
+    }
+
+    /** Parses [len] digits of [s] from [start], or null if out of range / non-digit. */
+    private fun parseDigits(
+        s: String,
+        start: Int,
+        len: Int,
+    ): Int? {
+        if (start + len > s.length) return null
+        var acc = 0
+        for (k in start until start + len) {
+            val c = s[k]
+            if (c < '0' || c > '9') return null
+            acc = acc * 10 + (c - '0')
+        }
+        return acc
     }
 
     private companion object {
@@ -105,5 +152,16 @@ class XmltvParser {
         const val TAG_TITLE = "title"
         const val TAG_DESC = "desc"
         const val TS_DIGITS = 14
+        const val SECONDS_PER_HOUR = 3600
+        const val SECONDS_PER_MINUTE = 60
+
+        // "yyyyMMddHHmmss" field widths and their indices in the parsed array.
+        val FIELD_WIDTHS = intArrayOf(4, 2, 2, 2, 2, 2)
+        const val YEAR = 0
+        const val MONTH = 1
+        const val DAY = 2
+        const val HOUR = 3
+        const val MINUTE = 4
+        const val SECOND = 5
     }
 }
