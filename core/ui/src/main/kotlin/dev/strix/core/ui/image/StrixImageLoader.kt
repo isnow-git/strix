@@ -7,6 +7,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.getSystemService
 import coil.ImageLoader
+import coil.imageLoader
 import coil.memory.MemoryCache
 
 /**
@@ -34,11 +35,16 @@ fun strixImageLoader(context: Context): ImageLoader {
         .build()
 }
 
-/** Remembers a single [strixImageLoader] for the current composition. */
+/**
+ * Returns the app-wide Coil loader (installed by the `Application` via
+ * `ImageLoaderFactory` — see `StrixApplication`), so every screen and every
+ * `AsyncImage` share one memory and disk cache instead of each building its own.
+ * Where no factory is installed (previews/tests) Coil's default loader is used.
+ */
 @Composable
 fun rememberStrixImageLoader(): ImageLoader {
     val context = LocalContext.current
-    return remember(context) { strixImageLoader(context) }
+    return remember(context) { context.applicationContext.imageLoader }
 }
 
 private const val DEFAULT_MEMORY_CLASS_MB = 64
