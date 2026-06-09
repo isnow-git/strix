@@ -1,5 +1,6 @@
 package dev.strix.feature.channels.state
 
+import androidx.annotation.StringRes
 import androidx.compose.runtime.Immutable
 
 /**
@@ -15,7 +16,7 @@ data class ChannelsUiState(
     val query: String = "",
     val selectedCategory: String? = null,
     val isRefreshing: Boolean = false,
-    val errorMessage: String? = null,
+    @StringRes val errorRes: Int? = null,
 )
 
 /** Whether the screen is browsing the list (with a side preview) or fullscreen. */

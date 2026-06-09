@@ -38,6 +38,7 @@ import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -49,6 +50,7 @@ import androidx.paging.compose.collectAsLazyPagingItems
 import androidx.paging.compose.itemKey
 import androidx.tv.material3.Text
 import dev.strix.core.designsystem.theme.StrixPalette
+import dev.strix.feature.channels.R
 import dev.strix.feature.channels.components.CategoryRail
 import dev.strix.feature.channels.components.CenterMessage
 import dev.strix.feature.channels.components.ChannelListDefaults
@@ -203,8 +205,12 @@ fun ChannelsScreen(
                     onSelect = { viewModel.onIntent(ChannelsIntent.CategorySelected(it)) },
                 )
             }
-            state.errorMessage?.let { message ->
-                Text(text = message, color = StrixPalette.Error, modifier = Modifier.padding(top = 12.dp))
+            state.errorRes?.let { res ->
+                Text(
+                    text = stringResource(res),
+                    color = StrixPalette.Error,
+                    modifier = Modifier.padding(top = 12.dp),
+                )
             }
 
             val refreshing = channels.loadState.refresh is LoadState.Loading
@@ -224,8 +230,10 @@ fun ChannelsScreen(
                             },
                 ) {
                     when {
-                        channels.itemCount == 0 && refreshing -> CenterMessage("Chargement…")
-                        channels.itemCount == 0 -> CenterMessage("Aucune chaîne. Change la source pour en importer.")
+                        channels.itemCount == 0 && refreshing ->
+                            CenterMessage(stringResource(R.string.channels_loading))
+                        channels.itemCount == 0 ->
+                            CenterMessage(stringResource(R.string.channels_empty))
                         else ->
                             LazyColumn(
                                 state = listState,

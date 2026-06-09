@@ -97,7 +97,9 @@ class ChannelsViewModel
         private val query = MutableStateFlow("")
         private val selectedCategory = MutableStateFlow<String?>(null)
         private val refreshing = MutableStateFlow(false)
-        private val error = MutableStateFlow<String?>(null)
+
+        // Holds a @StringRes id (resolved by the screen) so the VM stays free of Context.
+        private val errorRes = MutableStateFlow<Int?>(null)
         private val focusedChannel = MutableStateFlow<Channel?>(null)
 
         private val mutableMode = MutableStateFlow(ScreenMode.Browsing)
@@ -112,12 +114,12 @@ class ChannelsViewModel
         private var highestNumber = 0
 
         val uiState: StateFlow<ChannelsUiState> =
-            combine(query, selectedCategory, refreshing, error) { query, category, refreshing, error ->
+            combine(query, selectedCategory, refreshing, errorRes) { query, category, refreshing, errorRes ->
                 ChannelsUiState(
                     query = query,
                     selectedCategory = category,
                     isRefreshing = refreshing,
-                    errorMessage = error,
+                    errorRes = errorRes,
                 )
             }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), ChannelsUiState())
 
@@ -238,8 +240,8 @@ class ChannelsViewModel
         private fun refresh(source: StreamSourceConfig) {
             viewModelScope.launch {
                 refreshing.value = true
-                error.value = null
-                when (val result = channelRepository.refreshFrom(source)) {
+                errorRes.value = null
+                when (channelRepository.refreshFrom(source)) {
                     is StrixResult.Success -> {
                         highestNumber = channelRepository.channelCount()
                         // Defer the heavy EPG ingest so it doesn't compete with the first
@@ -249,7 +251,7 @@ class ChannelsViewModel
                             epgRepository.refresh()
                         }
                     }
-                    is StrixResult.Failure -> error.value = result.error.message ?: "Refresh failed"
+                    is StrixResult.Failure -> errorRes.value = R.string.channels_refresh_failed
                 }
                 refreshing.value = false
             }

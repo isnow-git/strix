@@ -22,6 +22,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -31,6 +32,7 @@ import dev.strix.core.designsystem.glass.glass
 import dev.strix.core.designsystem.theme.StrixPalette
 import dev.strix.core.model.Channel
 import dev.strix.core.model.epg.NowNext
+import dev.strix.feature.channels.R
 import kotlinx.coroutines.delay
 
 /**
@@ -97,7 +99,11 @@ fun PreviewPanel(
         if (current != null) {
             Text(text = current.title, color = StrixPalette.OnBackground, fontSize = 16.sp, maxLines = 2)
         } else {
-            Text(text = "Programme indisponible", color = StrixPalette.Muted, fontSize = 13.sp)
+            Text(
+                text = stringResource(R.string.channels_no_programme),
+                color = StrixPalette.Muted,
+                fontSize = 13.sp,
+            )
         }
 
         if (!description.isNullOrBlank()) {
@@ -109,7 +115,12 @@ fun PreviewPanel(
         }
 
         epg?.next?.let { next ->
-            Text(text = "Puis · ${next.title}", color = StrixPalette.Muted, fontSize = 12.sp, maxLines = 1)
+            Text(
+                text = stringResource(R.string.channels_up_next, next.title),
+                color = StrixPalette.Muted,
+                fontSize = 12.sp,
+                maxLines = 1,
+            )
         }
     }
 }

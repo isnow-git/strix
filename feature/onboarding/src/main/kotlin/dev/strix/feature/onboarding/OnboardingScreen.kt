@@ -16,6 +16,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -49,14 +51,20 @@ fun OnboardingScreen(
     ) {
         when (state.phase) {
             OnboardingPhase.Starting ->
-                Text(text = "Démarrage…", color = StrixPalette.OnBackground, fontSize = 20.sp)
+                Text(
+                    text = stringResource(R.string.onboarding_starting),
+                    color = StrixPalette.OnBackground,
+                    fontSize = 20.sp,
+                )
 
             OnboardingPhase.WaitingForPhone -> {
-                Text(text = "Scanne pour connecter", color = StrixPalette.OnBackground, fontSize = 28.sp)
                 Text(
-                    text =
-                        "Ouvre l'appareil photo de ton téléphone, scanne ce code, " +
-                            "puis saisis tes identifiants IPTV.",
+                    text = stringResource(R.string.onboarding_scan_title),
+                    color = StrixPalette.OnBackground,
+                    fontSize = 28.sp,
+                )
+                Text(
+                    text = stringResource(R.string.onboarding_scan_subtitle),
                     color = StrixPalette.Muted,
                     fontSize = 14.sp,
                     modifier = Modifier.padding(top = 8.dp, bottom = 24.dp),
@@ -64,7 +72,7 @@ fun OnboardingScreen(
                 state.qrCode?.let { qr ->
                     Image(
                         bitmap = qr,
-                        contentDescription = "QR code d'appairage",
+                        contentDescription = stringResource(R.string.onboarding_qr_cd),
                         modifier =
                             Modifier
                                 .size(280.dp)
@@ -84,13 +92,26 @@ fun OnboardingScreen(
             }
 
             OnboardingPhase.Importing ->
-                Text(text = "Importation des chaînes…", color = StrixPalette.OnBackground, fontSize = 20.sp)
+                Text(
+                    text = stringResource(R.string.onboarding_importing),
+                    color = StrixPalette.OnBackground,
+                    fontSize = 20.sp,
+                )
 
-            OnboardingPhase.Done ->
-                Text(text = state.message ?: "Terminé.", color = StrixPalette.OnBackground, fontSize = 20.sp)
+            OnboardingPhase.Done -> {
+                val text =
+                    state.importedCount
+                        ?.let { pluralStringResource(R.plurals.onboarding_imported, it, it) }
+                        ?: stringResource(R.string.onboarding_done)
+                Text(text = text, color = StrixPalette.OnBackground, fontSize = 20.sp)
+            }
 
-            OnboardingPhase.Error ->
-                Text(text = state.message ?: "Une erreur est survenue.", color = StrixPalette.Error, fontSize = 18.sp)
+            OnboardingPhase.Error -> {
+                val text =
+                    state.messageRes?.let { stringResource(it) }
+                        ?: stringResource(R.string.onboarding_error_generic)
+                Text(text = text, color = StrixPalette.Error, fontSize = 18.sp)
+            }
         }
     }
 }

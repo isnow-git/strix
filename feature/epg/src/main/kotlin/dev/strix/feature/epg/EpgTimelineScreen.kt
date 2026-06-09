@@ -40,6 +40,7 @@ import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
@@ -91,7 +92,12 @@ fun EpgTimelineScreen(
                     }
                 },
     ) {
-        Text(text = "Guide TV", color = StrixPalette.OnBackground, fontSize = 28.sp, fontWeight = FontWeight.Bold)
+        Text(
+            text = stringResource(R.string.epg_title),
+            color = StrixPalette.OnBackground,
+            fontSize = 28.sp,
+            fontWeight = FontWeight.Bold,
+        )
 
         Row(modifier = Modifier.fillMaxWidth().padding(top = 18.dp)) {
             Spacer(Modifier.width(LABEL_WIDTH.dp))
@@ -194,7 +200,7 @@ private fun EpgRow(
             val density = LocalDensity.current
             if (programmes.isEmpty()) {
                 Text(
-                    text = "Pas de guide",
+                    text = stringResource(R.string.epg_no_guide),
                     color = StrixPalette.Muted,
                     fontSize = 12.sp,
                     modifier = Modifier.align(Alignment.CenterStart).padding(start = 8.dp),

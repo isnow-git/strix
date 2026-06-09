@@ -36,6 +36,7 @@ import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.util.lerp
@@ -121,7 +122,11 @@ fun FullscreenPlayerScene(
     if (expanded && picture != Picture.Playing) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             if (picture == Picture.Unavailable) {
-                Text(text = "Chaîne indisponible", color = StrixPalette.Muted, fontSize = 16.sp)
+                Text(
+                    text = stringResource(R.string.channels_channel_unavailable),
+                    color = StrixPalette.Muted,
+                    fontSize = 16.sp,
+                )
             } else {
                 LoadingSpinner()
             }

@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="onboarding_starting">Démarrage…</string>
+    <string name="onboarding_scan_title">Scanne pour connecter</string>
+    <string name="onboarding_scan_subtitle">Ouvre l\'appareil photo de ton téléphone, scanne ce code, puis saisis tes identifiants IPTV.</string>
+    <string name="onboarding_qr_cd">QR code d\'appairage</string>
+    <string name="onboarding_importing">Importation des chaînes…</string>
+    <string name="onboarding_done">Terminé.</string>
+    <string name="onboarding_error_generic">Une erreur est survenue.</string>
+    <string name="onboarding_error_no_network">Aucun réseau local trouvé. Connecte la TV au Wi-Fi ou à l\'Ethernet. Les réseaux invités avec isolation client ne marchent pas.</string>
+    <string name="onboarding_error_form">Impossible de charger le formulaire d\'onboarding.</string>
+    <string name="onboarding_error_server">Impossible de démarrer le serveur d\'appairage.</string>
+    <string name="onboarding_error_save">Échec de l\'enregistrement des identifiants.</string>
+    <string name="onboarding_error_load">Enregistré, mais impossible de charger les chaînes.</string>
+
+    <plurals name="onboarding_imported">
+        <item quantity="one">%1$d chaîne importée.</item>
+        <item quantity="other">%1$d chaînes importées.</item>
+    </plurals>
+</resources>
