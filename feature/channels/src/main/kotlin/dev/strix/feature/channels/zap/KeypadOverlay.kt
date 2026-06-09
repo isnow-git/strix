@@ -13,11 +13,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.tv.material3.Text
 import dev.strix.core.designsystem.theme.StrixPalette
+import dev.strix.feature.channels.R
 
 /**
  * Bottom-right OSD showing the digits being typed and, once they resolve, the channel
@@ -48,7 +50,12 @@ fun BoxScope.KeypadOverlay(
             Text(text = input, color = StrixPalette.OnBackground, fontSize = 40.sp, fontWeight = FontWeight.Bold)
         }
         if (tuning != null) {
-            Text(text = "→ $tuning", color = StrixPalette.Muted, fontSize = 14.sp, maxLines = 1)
+            Text(
+                text = stringResource(R.string.channels_keypad_tuning, tuning),
+                color = StrixPalette.Muted,
+                fontSize = 14.sp,
+                maxLines = 1,
+            )
         }
     }
 }

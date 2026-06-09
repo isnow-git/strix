@@ -10,6 +10,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -19,6 +20,7 @@ import androidx.tv.material3.Text
 import dev.strix.core.designsystem.focus.focusRing
 import dev.strix.core.designsystem.glass.glass
 import dev.strix.core.designsystem.theme.StrixPalette
+import dev.strix.feature.channels.R
 
 /**
  * The category filter rail ("Toutes" + canonical categories). Reads only the category
@@ -36,7 +38,11 @@ fun CategoryRail(
         modifier = modifier.fillMaxWidth().padding(top = 18.dp),
     ) {
         item {
-            CategoryChip(label = "Toutes", selected = selected == null, onClick = { onSelect(null) })
+            CategoryChip(
+                label = stringResource(R.string.channels_category_all),
+                selected = selected == null,
+                onClick = { onSelect(null) },
+            )
         }
         items(categories) { category ->
             CategoryChip(label = category, selected = selected == category, onClick = { onSelect(category) })

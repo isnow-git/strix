@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="channels_brand">Strix</string>
+    <string name="channels_search_hint">Search a channel</string>
+    <string name="channels_tv_guide">TV guide</string>
+    <string name="channels_change_source">Change source</string>
+    <string name="channels_category_all">All</string>
+    <string name="channels_loading">Loading…</string>
+    <string name="channels_empty">No channels. Change the source to import some.</string>
+    <string name="channels_no_programme">No programme info</string>
+    <string name="channels_up_next">Next · %1$s</string>
+    <string name="channels_channel_unavailable">Channel unavailable</string>
+    <string name="channels_keypad_tuning">→ %1$s</string>
+    <string name="channels_refresh_failed">Couldn\'t refresh channels</string>
+
+    <plurals name="channels_count">
+        <item quantity="one">%1$d channel</item>
+        <item quantity="other">%1$d channels</item>
+    </plurals>
+</resources>

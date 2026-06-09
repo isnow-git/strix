@@ -1,6 +1,7 @@
 package dev.strix.feature.onboarding
 
 import android.content.Context
+import androidx.annotation.StringRes
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -48,10 +49,7 @@ class OnboardingViewModel
             viewModelScope.launch(Dispatchers.IO) {
                 val ip = LocalAddressFinder.siteLocalIpv4()
                 if (ip == null) {
-                    fail(
-                        "Aucun réseau local trouvé. Connecte la TV au Wi-Fi ou à l'Ethernet. " +
-                            "Les réseaux invités avec isolation client ne marchent pas.",
-                    )
+                    fail(R.string.onboarding_error_no_network)
                     return@launch
                 }
                 val html =
@@ -61,14 +59,14 @@ class OnboardingViewModel
                             .bufferedReader()
                             .use { it.readText() }
                     }.getOrElse {
-                        fail("Impossible de charger le formulaire d'onboarding.")
+                        fail(R.string.onboarding_error_form)
                         return@launch
                     }
 
                 val token = session.issue()
                 val httpServer = OnboardingServer(ip, session, html, ::onCredentials)
                 runCatching { httpServer.start() }.onFailure {
-                    fail("Impossible de démarrer le serveur d'appairage.")
+                    fail(R.string.onboarding_error_server)
                     return@launch
                 }
                 server = httpServer
@@ -86,22 +84,21 @@ class OnboardingViewModel
         /** Called from the server thread when the phone submits credentials. */
         private fun onCredentials(source: StreamSourceConfig) {
             viewModelScope.launch {
-                mutableUiState.update { it.copy(phase = OnboardingPhase.Importing, message = null) }
-                when (val stored = credentialReceiver.receive(source)) {
+                mutableUiState.update { it.copy(phase = OnboardingPhase.Importing, messageRes = null) }
+                when (credentialReceiver.receive(source)) {
                     is StrixResult.Failure -> {
-                        fail(stored.error.message ?: "Échec de l'enregistrement des identifiants.")
+                        fail(R.string.onboarding_error_save)
                         return@launch
                     }
                     is StrixResult.Success -> Unit
                 }
                 when (val refreshed = channelRepository.refreshFrom(source)) {
-                    is StrixResult.Failure ->
-                        fail(refreshed.error.message ?: "Enregistré, mais impossible de charger les chaînes.")
+                    is StrixResult.Failure -> fail(R.string.onboarding_error_load)
                     is StrixResult.Success -> {
                         mutableUiState.value =
                             OnboardingUiState(
                                 phase = OnboardingPhase.Done,
-                                message = "${refreshed.value} chaînes importées.",
+                                importedCount = refreshed.value,
                             )
                         // Ingest the EPG guide in the background, deferred so it doesn't
                         // compete with the first browse right after import.
@@ -124,8 +121,10 @@ class OnboardingViewModel
             stop()
         }
 
-        private fun fail(message: String) {
-            mutableUiState.value = OnboardingUiState(phase = OnboardingPhase.Error, message = message)
+        private fun fail(
+            @StringRes messageRes: Int,
+        ) {
+            mutableUiState.value = OnboardingUiState(phase = OnboardingPhase.Error, messageRes = messageRes)
         }
 
         private companion object {

@@ -21,6 +21,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -29,6 +30,7 @@ import coil3.compose.AsyncImage
 import dev.strix.core.designsystem.theme.StrixPalette
 import dev.strix.core.model.Channel
 import dev.strix.core.model.epg.NowNext
+import dev.strix.feature.channels.R
 
 /**
  * Fullscreen player overlay: a bottom info bar with play/pause state, channel logo,
@@ -86,7 +88,14 @@ fun PlayerOverlay(
                 maxLines = 1,
             )
             epg?.current?.let { Text(it.title, color = StrixPalette.Muted, fontSize = 18.sp, maxLines = 1) }
-            epg?.next?.let { Text("Puis · ${it.title}", color = StrixPalette.Muted, fontSize = 14.sp, maxLines = 1) }
+            epg?.next?.let {
+                Text(
+                    text = stringResource(R.string.channels_up_next, it.title),
+                    color = StrixPalette.Muted,
+                    fontSize = 14.sp,
+                    maxLines = 1,
+                )
+            }
         }
     }
 }

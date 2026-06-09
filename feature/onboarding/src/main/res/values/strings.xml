@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="onboarding_starting">Starting…</string>
+    <string name="onboarding_scan_title">Scan to connect</string>
+    <string name="onboarding_scan_subtitle">Open your phone\'s camera, scan this code, then enter your IPTV credentials.</string>
+    <string name="onboarding_qr_cd">Pairing QR code</string>
+    <string name="onboarding_importing">Importing channels…</string>
+    <string name="onboarding_done">Done.</string>
+    <string name="onboarding_error_generic">Something went wrong.</string>
+    <string name="onboarding_error_no_network">No local network found. Connect the TV to Wi-Fi or Ethernet. Guest networks with client isolation won\'t work.</string>
+    <string name="onboarding_error_form">Couldn\'t load the onboarding form.</string>
+    <string name="onboarding_error_server">Couldn\'t start the pairing server.</string>
+    <string name="onboarding_error_save">Couldn\'t save your credentials.</string>
+    <string name="onboarding_error_load">Saved, but couldn\'t load the channels.</string>
+
+    <plurals name="onboarding_imported">
+        <item quantity="one">%1$d channel imported.</item>
+        <item quantity="other">%1$d channels imported.</item>
+    </plurals>
+</resources>

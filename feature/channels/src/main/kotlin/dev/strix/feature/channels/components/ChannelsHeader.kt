@@ -13,6 +13,8 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -21,6 +23,7 @@ import androidx.tv.material3.Text
 import dev.strix.core.designsystem.focus.focusRing
 import dev.strix.core.designsystem.glass.glass
 import dev.strix.core.designsystem.theme.StrixPalette
+import dev.strix.feature.channels.R
 
 /**
  * The frozen top bar: title + channel count, search field and change-source button. It
@@ -42,9 +45,18 @@ fun ChannelsHeader(
         horizontalArrangement = Arrangement.spacedBy(20.dp),
     ) {
         Column {
-            Text(text = "Strix", color = StrixPalette.OnBackground, fontSize = 30.sp, fontWeight = FontWeight.Bold)
+            Text(
+                text = stringResource(R.string.channels_brand),
+                color = StrixPalette.OnBackground,
+                fontSize = 30.sp,
+                fontWeight = FontWeight.Bold,
+            )
             if (channelCount > 0) {
-                Text(text = "$channelCount chaînes", color = StrixPalette.Muted, fontSize = 13.sp)
+                Text(
+                    text = pluralStringResource(R.plurals.channels_count, channelCount, channelCount),
+                    color = StrixPalette.Muted,
+                    fontSize = 13.sp,
+                )
             }
         }
         SearchField(
@@ -56,8 +68,8 @@ fun ChannelsHeader(
                     .focusRequester(searchFocus)
                     .onFocusChanged { onSearchFocusChanged(it.isFocused) },
         )
-        GlassButton(label = "Guide TV", onClick = onOpenGuide)
-        GlassButton(label = "Changer la source", onClick = onChangeSource)
+        GlassButton(label = stringResource(R.string.channels_tv_guide), onClick = onOpenGuide)
+        GlassButton(label = stringResource(R.string.channels_change_source), onClick = onChangeSource)
     }
 }
 
@@ -80,7 +92,11 @@ private fun SearchField(
                 .padding(horizontal = 16.dp, vertical = 12.dp),
         decorationBox = { inner ->
             if (query.isEmpty()) {
-                Text(text = "Rechercher une chaîne", color = StrixPalette.Muted, fontSize = 16.sp)
+                Text(
+                    text = stringResource(R.string.channels_search_hint),
+                    color = StrixPalette.Muted,
+                    fontSize = 16.sp,
+                )
             }
             inner()
         },
