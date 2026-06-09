@@ -1,24 +1,20 @@
-# R8 full-mode rules for the release build. Keep this list minimal and add
-# library-specific keeps only when a real reflective access breaks.
+# R8 runs in full mode (see gradle.properties / convention plugin). Most keeps come
+# from the libraries' own consumer rules; add app-specific keeps here as needed.
 
-# --- Media3 / ExoPlayer ---
-# ExoPlayer instantiates renderers/decoders reflectively in some paths.
+# Media3 / ExoPlayer reflectively instantiates some components.
 -keep class androidx.media3.** { *; }
 -dontwarn androidx.media3.**
 
-# --- OkHttp / Okio ---
--dontwarn okhttp3.**
--dontwarn okio.**
--dontwarn org.conscrypt.**
-
-# --- NanoHTTPD (onboarding server) ---
--dontwarn fi.iki.elonen.**
-
-# --- Kotlin coroutines ---
--dontwarn kotlinx.coroutines.**
-
-# Keep enums used by Room/serialization mappers via valueOf.
--keepclassmembers enum * {
-    public static **[] values();
-    public static ** valueOf(java.lang.String);
+# kotlinx.serialization: keep the generated serializers and @Serializable metadata so
+# the Xtream / iptv-org models still parse after R8 shrinking/obfuscation.
+-keepattributes RuntimeVisibleAnnotations,AnnotationDefault
+-keepclassmembers @kotlinx.serialization.Serializable class ** {
+    *** Companion;
+    *** INSTANCE;
+    kotlinx.serialization.KSerializer serializer(...);
 }
+-keepclasseswithmembers class **$$serializer { *; }
+-dontwarn kotlinx.serialization.**
+
+# NanoHTTPD (embedded onboarding server) — keep the lib it reflects over internally.
+-dontwarn fi.iki.elonen.**

@@ -12,7 +12,6 @@ indent_size = 4
 max_line_length = 120
 # Composable functions are intentionally PascalCase.
 ktlint_function_naming_ignore_when_annotated_with = Composable
-# Compose @Preview/@Composable factory-like functions may also return Unit by name.
 ktlint_standard_function-naming = enabled
 
 [*.{yml,yaml,toml,json}]

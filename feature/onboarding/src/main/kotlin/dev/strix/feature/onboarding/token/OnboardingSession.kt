@@ -9,11 +9,9 @@ data class OnboardingToken(
 )
 
 /**
- * Single pairing session: issues a token encoded in the QR, then accepts exactly
- * **one** valid submission within a short TTL. Security properties (ADR-0005):
- * single-use, short-lived, one submission only.
- *
- * [now] and [generator] are injectable for deterministic tests.
+ * Single pairing session: issues a token encoded in the QR, then accepts exactly **one**
+ * valid submission within a short TTL. Security properties: single-use, short-lived, one
+ * submission only. [now] and [generator] are injectable for deterministic tests.
  */
 class OnboardingSession(
     private val ttlMs: Long = DEFAULT_TTL_MS,

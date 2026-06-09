@@ -1,10 +1,10 @@
 package dev.strix.core.data
 
 import com.google.common.truth.Truth.assertThat
-import dev.strix.core.common.model.Channel
-import dev.strix.core.common.model.ChannelId
 import dev.strix.core.database.entity.ChannelEntity
 import dev.strix.core.database.entity.ChannelFtsEntity
+import dev.strix.core.model.Channel
+import dev.strix.core.model.ChannelId
 import kotlinx.coroutines.test.runTest
 import org.junit.Test
 

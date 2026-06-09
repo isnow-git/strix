@@ -7,9 +7,11 @@ android {
     namespace = "dev.strix.core.player"
 }
 
-dependencies {
-    implementation(projects.core.common)
+// Media3 wrapper: a factory that builds TV-tuned ExoPlayers (low-RAM LoadControl +
+// calibrated ABR) and a deterministic playback controller (explicit picture state,
+// generation-guarded timeouts) so the UI never has to reason about player races.
 
+dependencies {
     implementation(libs.media3.exoplayer)
     implementation(libs.media3.exoplayer.hls)
     implementation(libs.media3.datasource.okhttp)

@@ -1,19 +1,19 @@
 package dev.strix.core.data
 
-import dev.strix.core.common.model.Channel
 import dev.strix.core.database.entity.ChannelEntity
 import dev.strix.core.database.entity.ChannelFtsEntity
 import dev.strix.core.database.mapper.toEntity
 import dev.strix.core.database.mapper.toFtsEntity
+import dev.strix.core.model.Channel
 
 /**
- * Drains a lazily-parsed [Channel] sequence into fixed-size batches and hands
- * each batch to [sink] for a single transactional write.
+ * Drains a lazily-parsed [Channel] sequence into fixed-size batches and hands each
+ * batch to [sink] for a single transactional write.
  *
  * This is the heart of the O(1)-memory import: the source sequence is consumed
- * incrementally and only [batchSize] entities are held at once, so a playlist of
- * any size never lands fully in RAM. `sortIndex` is assigned here so the stored
- * order matches the playlist without any runtime sort.
+ * incrementally and only [batchSize] entities are held at once, so a playlist of any
+ * size never lands fully in RAM. `sortIndex` is assigned here so the stored order
+ * matches the playlist without any runtime sort.
  */
 class PlaylistImporter(
     private val batchSize: Int = DEFAULT_BATCH_SIZE,

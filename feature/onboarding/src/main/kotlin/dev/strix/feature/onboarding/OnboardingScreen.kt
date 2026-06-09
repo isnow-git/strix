@@ -17,15 +17,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.tv.material3.Text
-import dev.strix.core.ui.theme.StrixTheme
+import dev.strix.core.designsystem.theme.StrixPalette
 
 /**
- * Onboarding screen: shows a QR the phone scans to open the credential form
- * served by the TV. The embedded server is started here and stopped on dispose,
- * so it costs nothing once onboarding is over.
+ * Onboarding screen: shows a QR the phone scans to open the credential form served by
+ * the TV. The embedded server is started here and stopped on dispose, so it costs
+ * nothing once onboarding is over.
  */
 @Composable
 fun OnboardingScreen(
@@ -41,48 +42,55 @@ fun OnboardingScreen(
         if (state.phase == OnboardingPhase.Done) onDone()
     }
 
-    StrixTheme {
-        Column(
-            modifier = modifier.fillMaxSize().padding(48.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center,
-        ) {
-            when (state.phase) {
-                OnboardingPhase.Starting ->
-                    Text("Starting…")
+    Column(
+        modifier = modifier.fillMaxSize().padding(48.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+    ) {
+        when (state.phase) {
+            OnboardingPhase.Starting ->
+                Text(text = "Démarrage…", color = StrixPalette.OnBackground, fontSize = 20.sp)
 
-                OnboardingPhase.WaitingForPhone -> {
-                    Text("Scan to connect")
-                    Text(
-                        text = "Open your phone camera and scan this code, then enter your IPTV details.",
-                        modifier = Modifier.padding(top = 8.dp, bottom = 24.dp),
+            OnboardingPhase.WaitingForPhone -> {
+                Text(text = "Scanne pour connecter", color = StrixPalette.OnBackground, fontSize = 28.sp)
+                Text(
+                    text =
+                        "Ouvre l'appareil photo de ton téléphone, scanne ce code, " +
+                            "puis saisis tes identifiants IPTV.",
+                    color = StrixPalette.Muted,
+                    fontSize = 14.sp,
+                    modifier = Modifier.padding(top = 8.dp, bottom = 24.dp),
+                )
+                state.qrCode?.let { qr ->
+                    Image(
+                        bitmap = qr,
+                        contentDescription = "QR code d'appairage",
+                        modifier =
+                            Modifier
+                                .size(280.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(Color.White)
+                                .padding(12.dp),
                     )
-                    state.qrCode?.let { qr ->
-                        Image(
-                            bitmap = qr,
-                            contentDescription = "Pairing QR code",
-                            modifier =
-                                Modifier
-                                    .size(280.dp)
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .background(Color.White)
-                                    .padding(12.dp),
-                        )
-                    }
-                    state.pairingUrl?.let { url ->
-                        Text(text = url, modifier = Modifier.padding(top = 24.dp))
-                    }
                 }
-
-                OnboardingPhase.Importing ->
-                    Text("Importing channels…")
-
-                OnboardingPhase.Done ->
-                    Text(state.message ?: "Done.")
-
-                OnboardingPhase.Error ->
-                    Text(state.message ?: "Something went wrong.")
+                state.pairingUrl?.let { url ->
+                    Text(
+                        text = url,
+                        color = StrixPalette.Muted,
+                        fontSize = 13.sp,
+                        modifier = Modifier.padding(top = 24.dp),
+                    )
+                }
             }
+
+            OnboardingPhase.Importing ->
+                Text(text = "Importation des chaînes…", color = StrixPalette.OnBackground, fontSize = 20.sp)
+
+            OnboardingPhase.Done ->
+                Text(text = state.message ?: "Terminé.", color = StrixPalette.OnBackground, fontSize = 20.sp)
+
+            OnboardingPhase.Error ->
+                Text(text = state.message ?: "Une erreur est survenue.", color = StrixPalette.Error, fontSize = 18.sp)
         }
     }
 }

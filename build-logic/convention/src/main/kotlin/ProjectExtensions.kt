@@ -12,16 +12,19 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 object StrixSdk {
     const val COMPILE = 36
     const val TARGET = 36
+
+    // Android TV 11 (API 30) is the lowest target device; 26 keeps the app installable
+    // on a broad range of TV boxes without requiring any API>30-only feature at runtime.
     const val MIN = 26
 }
 
-// NOTE: deliberately NOT named `libs` — a top-level `Project.libs` would shadow
-// Gradle's generated `libs` catalog accessor inside module build scripts, breaking
-// every `libs.androidx.*` reference there.
+// Deliberately NOT named `libs`: a top-level `Project.libs` would shadow Gradle's
+// generated `libs` catalog accessor inside module build scripts, breaking every
+// `libs.androidx.*` reference there.
 val Project.versionCatalog: VersionCatalog
     get() = extensions.getByType<VersionCatalogsExtension>().named("libs")
 
-/** Shared Android + Kotlin config applied by both the app and library convention plugins. */
+/** Shared Android + Kotlin configuration applied by the app and library conventions. */
 internal fun Project.configureKotlinAndroid(
     commonExtension: CommonExtension<*, *, *, *, *, *>,
 ) {
@@ -35,6 +38,13 @@ internal fun Project.configureKotlinAndroid(
         compileOptions {
             sourceCompatibility = JavaVersion.VERSION_17
             targetCompatibility = JavaVersion.VERSION_17
+        }
+
+        lint {
+            // Media3's ExoPlayer surface is almost entirely @UnstableApi and Strix opts
+            // into it deliberately, app-wide (it is the player). The per-call opt-in
+            // check is pure noise here, so disable just that one rule and keep lint on.
+            disable += "UnsafeOptInUsageError"
         }
     }
 
@@ -55,7 +65,7 @@ internal fun Project.configureQuality() {
     }
 
     extensions.configure(org.jlleitschuh.gradle.ktlint.KtlintExtension::class.java) {
-        version.set("1.4.1")
+        version.set("1.5.0")
         android.set(true)
         ignoreFailures.set(false)
     }

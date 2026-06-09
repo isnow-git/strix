@@ -1,7 +1,7 @@
 package dev.strix.core.network.playlist
 
 import com.google.common.truth.Truth.assertThat
-import dev.strix.core.common.model.ChannelId
+import dev.strix.core.model.ChannelId
 import org.junit.Test
 
 class M3uParserTest {

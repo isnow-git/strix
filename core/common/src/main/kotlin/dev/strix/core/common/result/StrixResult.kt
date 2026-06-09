@@ -3,12 +3,12 @@ package dev.strix.core.common.result
 /**
  * A success-or-failure result carrying a typed [StrixError] on failure.
  *
- * Preferred over `kotlin.Result` in the domain because the error side is a
- * closed [StrixError] taxonomy rather than an arbitrary `Throwable`, which keeps
- * `when` branches exhaustive and avoids leaking framework exceptions.
+ * Preferred over `kotlin.Result` in the domain because the error side is a closed
+ * [StrixError] taxonomy rather than an arbitrary `Throwable`, which keeps `when`
+ * branches exhaustive and stops framework exceptions leaking across layers.
  *
- * The combinators are `inline` so that mapping/folding on hot paths (channel
- * lists, zapping) adds no extra allocation or lambda dispatch.
+ * The combinators are `inline` so mapping/folding on hot paths (channel lists,
+ * zapping) adds no extra allocation or lambda dispatch.
  */
 sealed interface StrixResult<out T> {
     data class Success<out T>(

@@ -3,12 +3,12 @@ package dev.strix.core.network.resilience
 import kotlinx.coroutines.delay
 
 /**
- * Runs [block] up to [maxAttempts] times, backing off via [policy] between
- * tries. Only retries when [shouldRetry] accepts the thrown error; otherwise the
- * error propagates immediately.
+ * Runs [block] up to [maxAttempts] times, backing off via [policy] between tries.
+ * Only retries when [shouldRetry] accepts the thrown error; otherwise the error
+ * propagates immediately.
  *
- * [delayFn] is injectable so tests can assert the backoff schedule without
- * real-time waits.
+ * [delayFn] is injectable so tests can assert the backoff schedule without real-time
+ * waits.
  */
 @Suppress("TooGenericExceptionCaught") // Retrying is generic by design; callers narrow via shouldRetry.
 suspend fun <T> retryWithBackoff(

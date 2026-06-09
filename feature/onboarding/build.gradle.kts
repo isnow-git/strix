@@ -8,23 +8,23 @@ android {
     namespace = "dev.strix.feature.onboarding"
 }
 
+// No-cloud onboarding: the TV hosts a one-page form on the LAN (NanoHTTPD), the phone
+// scans a QR (ZXing) and submits the IPTV source — no painful remote typing. Credential
+// storage + import live in :core:data; this module only drives the pairing flow.
+
 dependencies {
+    implementation(projects.core.model)
     implementation(projects.core.common)
-    implementation(projects.core.ui)
-    implementation(projects.core.network)
+    implementation(projects.core.domain)
+    implementation(projects.core.designsystem)
 
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.lifecycle.runtime.compose)
-    implementation(libs.androidx.navigation.compose)
     implementation(libs.hilt.navigation.compose)
-    implementation(libs.kotlinx.coroutines.android)
-
-    // Embedded onboarding server + QR + encrypted credential storage
     implementation(libs.nanohttpd)
     implementation(libs.zxing.core)
-    implementation(libs.androidx.security.crypto)
+    implementation(libs.kotlinx.coroutines.android)
 
     testImplementation(libs.junit)
-    testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.truth)
 }

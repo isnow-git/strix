@@ -2,11 +2,11 @@
   "formatVersion": 1,
   "database": {
     "version": 1,
-    "identityHash": "5160ff8d4cad9c0083cbcc20a15f5b7a",
+    "identityHash": "fe4346d5f4916a57a81faa2561be6449",
     "entities": [
       {
         "tableName": "channels",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`rowid` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `channelId` TEXT NOT NULL, `name` TEXT NOT NULL, `streamUrl` TEXT NOT NULL, `logoUrl` TEXT, `groupTitle` TEXT, `number` INTEGER, `sortIndex` INTEGER NOT NULL)",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`rowid` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `channelId` TEXT NOT NULL, `name` TEXT NOT NULL, `displayName` TEXT NOT NULL, `streamUrl` TEXT NOT NULL, `logoUrl` TEXT, `groupTitle` TEXT, `number` INTEGER, `sortIndex` INTEGER NOT NULL, `channelNumber` INTEGER NOT NULL, `baseKey` TEXT NOT NULL, `qualityRank` INTEGER NOT NULL, `qualityLabel` TEXT, `isPrimary` INTEGER NOT NULL, `epgChannelId` TEXT, `timeshift` INTEGER NOT NULL, `epgBaseKey` TEXT NOT NULL, `category` TEXT NOT NULL)",
         "fields": [
           {
             "fieldPath": "rowid",
@@ -27,6 +27,12 @@
             "notNull": true
           },
           {
+            "fieldPath": "displayName",
+            "columnName": "displayName",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
             "fieldPath": "streamUrl",
             "columnName": "streamUrl",
             "affinity": "TEXT",
@@ -35,25 +41,74 @@
           {
             "fieldPath": "logoUrl",
             "columnName": "logoUrl",
-            "affinity": "TEXT",
-            "notNull": false
+            "affinity": "TEXT"
           },
           {
             "fieldPath": "groupTitle",
             "columnName": "groupTitle",
-            "affinity": "TEXT",
-            "notNull": false
+            "affinity": "TEXT"
           },
           {
             "fieldPath": "number",
             "columnName": "number",
-            "affinity": "INTEGER",
-            "notNull": false
+            "affinity": "INTEGER"
           },
           {
             "fieldPath": "sortIndex",
             "columnName": "sortIndex",
             "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "channelNumber",
+            "columnName": "channelNumber",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "baseKey",
+            "columnName": "baseKey",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "qualityRank",
+            "columnName": "qualityRank",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "qualityLabel",
+            "columnName": "qualityLabel",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "isPrimary",
+            "columnName": "isPrimary",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "epgChannelId",
+            "columnName": "epgChannelId",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "timeshift",
+            "columnName": "timeshift",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "epgBaseKey",
+            "columnName": "epgBaseKey",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "category",
+            "columnName": "category",
+            "affinity": "TEXT",
             "notNull": true
           }
         ],
@@ -74,15 +129,6 @@
             "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_channels_channelId` ON `${TABLE_NAME}` (`channelId`)"
           },
           {
-            "name": "index_channels_groupTitle",
-            "unique": false,
-            "columnNames": [
-              "groupTitle"
-            ],
-            "orders": [],
-            "createSql": "CREATE INDEX IF NOT EXISTS `index_channels_groupTitle` ON `${TABLE_NAME}` (`groupTitle`)"
-          },
-          {
             "name": "index_channels_sortIndex",
             "unique": false,
             "columnNames": [
@@ -90,25 +136,55 @@
             ],
             "orders": [],
             "createSql": "CREATE INDEX IF NOT EXISTS `index_channels_sortIndex` ON `${TABLE_NAME}` (`sortIndex`)"
+          },
+          {
+            "name": "index_channels_baseKey",
+            "unique": false,
+            "columnNames": [
+              "baseKey"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_channels_baseKey` ON `${TABLE_NAME}` (`baseKey`)"
+          },
+          {
+            "name": "index_channels_isPrimary",
+            "unique": false,
+            "columnNames": [
+              "isPrimary"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_channels_isPrimary` ON `${TABLE_NAME}` (`isPrimary`)"
+          },
+          {
+            "name": "index_channels_epgBaseKey",
+            "unique": false,
+            "columnNames": [
+              "epgBaseKey"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_channels_epgBaseKey` ON `${TABLE_NAME}` (`epgBaseKey`)"
+          },
+          {
+            "name": "index_channels_category",
+            "unique": false,
+            "columnNames": [
+              "category"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_channels_category` ON `${TABLE_NAME}` (`category`)"
+          },
+          {
+            "name": "index_channels_channelNumber",
+            "unique": false,
+            "columnNames": [
+              "channelNumber"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_channels_channelNumber` ON `${TABLE_NAME}` (`channelNumber`)"
           }
-        ],
-        "foreignKeys": []
+        ]
       },
       {
-        "ftsVersion": "FTS4",
-        "ftsOptions": {
-          "tokenizer": "simple",
-          "tokenizerArgs": [],
-          "contentTable": "",
-          "languageIdColumnName": "",
-          "matchInfo": "FTS4",
-          "notIndexedColumns": [
-            "channelId"
-          ],
-          "prefixSizes": [],
-          "preferredOrder": "ASC"
-        },
-        "contentSyncTriggers": [],
         "tableName": "channels_fts",
         "createSql": "CREATE VIRTUAL TABLE IF NOT EXISTS `${TABLE_NAME}` USING FTS4(`channelId` TEXT NOT NULL, `name` TEXT NOT NULL, `groupTitle` TEXT, notindexed=`channelId`)",
         "fields": [
@@ -127,22 +203,91 @@
           {
             "fieldPath": "groupTitle",
             "columnName": "groupTitle",
-            "affinity": "TEXT",
-            "notNull": false
+            "affinity": "TEXT"
           }
         ],
         "primaryKey": {
           "autoGenerate": false,
           "columnNames": []
         },
-        "indices": [],
-        "foreignKeys": []
+        "ftsVersion": "FTS4",
+        "ftsOptions": {
+          "tokenizer": "simple",
+          "tokenizerArgs": [],
+          "contentTable": "",
+          "languageIdColumnName": "",
+          "matchInfo": "FTS4",
+          "notIndexedColumns": [
+            "channelId"
+          ],
+          "prefixSizes": [],
+          "preferredOrder": "ASC"
+        },
+        "contentSyncTriggers": []
+      },
+      {
+        "tableName": "epg_programmes",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `normChannelId` TEXT NOT NULL, `startSec` INTEGER NOT NULL, `stopSec` INTEGER NOT NULL, `title` TEXT NOT NULL, `description` TEXT)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "normChannelId",
+            "columnName": "normChannelId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "startSec",
+            "columnName": "startSec",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "stopSec",
+            "columnName": "stopSec",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "title",
+            "columnName": "title",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "description",
+            "columnName": "description",
+            "affinity": "TEXT"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_epg_programmes_normChannelId_startSec",
+            "unique": false,
+            "columnNames": [
+              "normChannelId",
+              "startSec"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_epg_programmes_normChannelId_startSec` ON `${TABLE_NAME}` (`normChannelId`, `startSec`)"
+          }
+        ]
       }
     ],
-    "views": [],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '5160ff8d4cad9c0083cbcc20a15f5b7a')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'fe4346d5f4916a57a81faa2561be6449')"
     ]
   }
 }

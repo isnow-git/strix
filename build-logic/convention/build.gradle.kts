@@ -19,13 +19,14 @@ tasks.withType<KotlinCompile>().configureEach {
 }
 
 dependencies {
-    // AGP / Kotlin / KSP are provided on the consuming project's plugin classpath
-    // via the root `plugins {}` block (apply false), so compileOnly is enough.
+    // AGP / Kotlin / KSP land on the consuming project's plugin classpath via the
+    // root `plugins { ... apply false }` block, so compileOnly is enough here.
     compileOnly(libs.android.gradlePlugin)
     compileOnly(libs.kotlin.gradlePlugin)
+    compileOnly(libs.compose.gradlePlugin)
     compileOnly(libs.ksp.gradlePlugin)
-    // ktlint / detekt are NOT declared at the root, so the convention plugin must
-    // carry them onto the classpath itself — hence implementation, not compileOnly.
+    // ktlint / detekt are not declared at the root, so the convention plugin must
+    // put them on the classpath itself — hence implementation, not compileOnly.
     implementation(libs.detekt.gradlePlugin)
     implementation(libs.ktlint.gradlePlugin)
 }

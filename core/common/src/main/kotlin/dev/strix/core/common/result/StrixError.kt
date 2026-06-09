@@ -1,9 +1,9 @@
 package dev.strix.core.common.result
 
 /**
- * Domain-level error taxonomy. Keeps the presentation and data layers from
- * leaking framework exceptions (OkHttp, SQLite, …) across the [StrixResult]
- * boundary. Map low-level throwables to one of these at the data edge.
+ * Domain-level error taxonomy. Keeps the presentation and data layers from leaking
+ * framework exceptions (OkHttp, SQLite, …) across the [StrixResult] boundary. Map
+ * low-level throwables to one of these at the data edge.
  */
 sealed interface StrixError {
     val message: String?
@@ -19,7 +19,7 @@ sealed interface StrixError {
         override val message: String? = null,
     ) : StrixError
 
-    /** Malformed playlist/EPG/provider payload. */
+    /** Malformed playlist / EPG / provider payload. */
     data class Parsing(
         override val message: String? = null,
     ) : StrixError

@@ -1,11 +1,11 @@
 package dev.strix.feature.onboarding.server
 
-import dev.strix.core.common.model.StreamSourceConfig
+import dev.strix.core.model.StreamSourceConfig
 import dev.strix.feature.onboarding.token.OnboardingSession
 import fi.iki.elonen.NanoHTTPD
 
 /**
- * Tiny HTTP server, alive only during onboarding (ADR-0005/0008).
+ * Tiny HTTP server, alive only during onboarding.
  *
  * - GET `/?t=<token>` serves the credential form if the token is currently valid.
  * - POST burns the single-use token and forwards the submitted source.

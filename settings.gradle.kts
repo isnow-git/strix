@@ -27,14 +27,16 @@ rootProject.name = "strix"
 
 enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
 
+// Modules are added phase by phase as they are implemented, so every commit builds.
 include(":app")
+include(":core:model")
 include(":core:common")
-include(":core:ui")
+include(":core:domain")
 include(":core:database")
 include(":core:network")
-include(":core:player")
 include(":core:data")
+include(":core:player")
+include(":core:designsystem")
 include(":feature:channels")
-include(":feature:player")
 include(":feature:onboarding")
 include(":feature:epg")

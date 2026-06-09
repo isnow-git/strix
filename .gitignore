@@ -1,48 +1,17 @@
-# Built application files
-*.apk
-*.aar
-*.ap_
-*.aab
-
-# Files for the ART/Dalvik VM
-*.dex
-
-# Java class files
-*.class
-
-# Generated files
-bin/
-gen/
-out/
-build/
-
 # Gradle
 .gradle/
 build/
 !gradle/wrapper/gradle-wrapper.jar
-!**/src/**/build/
 
-# Local configuration (SDK path, etc.)
+# Android / IDE
 local.properties
-
-# Android Studio / IntelliJ
+.kotlin/
 *.iml
 .idea/
+.zed/
 captures/
-.externalNativeBuild/
 .cxx/
 
-# Keystore files (never commit signing keys)
-*.jks
-*.keystore
-keystore.properties
-
-# OS files
+# OS / logs
 .DS_Store
-Thumbs.db
-
-# Logs
 *.log
-
-# Kotlin
-.kotlin/

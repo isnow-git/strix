@@ -7,18 +7,15 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import androidx.navigation.navArgument
-import dev.strix.core.ui.theme.StrixTheme
-import dev.strix.feature.channels.ChannelsScreen
+import dev.strix.core.designsystem.theme.StrixTheme
+import dev.strix.feature.channels.ChannelsRoute
+import dev.strix.feature.epg.EpgTimelineRoute
 import dev.strix.feature.onboarding.OnboardingScreen
-import dev.strix.feature.player.PlayerScreen
-import dev.strix.feature.player.PlayerViewModel
 
-/** App navigation: onboarding (first run) -> channel grid -> fullscreen player. */
+/** App navigation: onboarding (first run) -> channel home (which hosts its own player). */
 @Composable
 fun StrixNavHost() {
     StrixTheme {
@@ -35,23 +32,19 @@ fun StrixNavHost() {
                     onDone = {
                         navController.navigate(Routes.CHANNELS) {
                             popUpTo(Routes.ONBOARDING) { inclusive = true }
+                            launchSingleTop = true
                         }
                     },
                 )
             }
             composable(Routes.CHANNELS) {
-                ChannelsScreen(
-                    onPlay = { channel -> navController.navigate(Routes.player(channel.id.value)) },
+                ChannelsRoute(
+                    onChangeSource = { navController.navigate(Routes.ONBOARDING) },
+                    onOpenGuide = { navController.navigate(Routes.EPG) },
                 )
             }
-            composable(
-                route = Routes.PLAYER,
-                arguments =
-                    listOf(
-                        navArgument(PlayerViewModel.ARG_CHANNEL_ID) { type = NavType.StringType },
-                    ),
-            ) {
-                PlayerScreen()
+            composable(Routes.EPG) {
+                EpgTimelineRoute(onBack = { navController.popBackStack() })
             }
         }
     }

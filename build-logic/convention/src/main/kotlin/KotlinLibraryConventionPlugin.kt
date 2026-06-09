@@ -7,22 +7,23 @@ import org.gradle.kotlin.dsl.withType
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
-/** Pure-JVM Kotlin module (no Android). Used by `:core:common`. */
+/** Pure-JVM Kotlin module (no Android). Used by :core:model and :core:common. */
 class KotlinLibraryConventionPlugin : Plugin<Project> {
-    override fun apply(target: Project) = with(target) {
-        pluginManager.apply("org.jetbrains.kotlin.jvm")
+    override fun apply(target: Project) =
+        with(target) {
+            pluginManager.apply("org.jetbrains.kotlin.jvm")
 
-        extensions.configure<JavaPluginExtension> {
-            sourceCompatibility = JavaVersion.VERSION_17
-            targetCompatibility = JavaVersion.VERSION_17
-        }
-
-        tasks.withType<KotlinCompile>().configureEach {
-            compilerOptions {
-                jvmTarget.set(JvmTarget.JVM_17)
+            extensions.configure<JavaPluginExtension> {
+                sourceCompatibility = JavaVersion.VERSION_17
+                targetCompatibility = JavaVersion.VERSION_17
             }
-        }
 
-        configureQuality()
-    }
+            tasks.withType<KotlinCompile>().configureEach {
+                compilerOptions {
+                    jvmTarget.set(JvmTarget.JVM_17)
+                }
+            }
+
+            configureQuality()
+        }
 }

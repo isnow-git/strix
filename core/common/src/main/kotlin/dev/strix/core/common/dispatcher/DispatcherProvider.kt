@@ -6,7 +6,7 @@ import kotlinx.coroutines.Dispatchers
 /**
  * Abstraction over the coroutine dispatchers so use cases and repositories never
  * hard-code [Dispatchers]. Lets tests swap in a single test dispatcher and keeps
- * threading decisions injectable (DIP).
+ * threading decisions injectable (Dependency Inversion).
  */
 interface DispatcherProvider {
     val main: CoroutineDispatcher

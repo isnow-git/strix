@@ -8,13 +8,13 @@ android {
 }
 
 ksp {
-    // Export Room schemas so migrations can be written and verified from v1.
+    // Export Room schemas so migrations can be written and verified from v1 onward.
     arg("room.schemaLocation", "$projectDir/schemas")
     arg("room.generateKotlin", "true")
 }
 
 dependencies {
-    implementation(projects.core.common)
+    implementation(projects.core.model)
 
     implementation(libs.room.runtime)
     implementation(libs.room.ktx)

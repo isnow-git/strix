@@ -1,15 +1,15 @@
 package dev.strix.core.network.playlist
 
-import dev.strix.core.common.model.Channel
-import dev.strix.core.common.model.ChannelId
+import dev.strix.core.model.Channel
+import dev.strix.core.model.ChannelId
 
 /**
  * Streaming M3U/M3U8 parser.
  *
- * Consumes the playlist **line by line** and yields one [Channel] at a time as a
- * lazy [Sequence], so an arbitrarily large playlist is never materialised in RAM
- * (O(1) memory — a hard requirement on low-RAM TVs). The caller drives the
- * sequence and writes channels to Room in batches.
+ * Consumes the playlist **line by line** and yields one [Channel] at a time as a lazy
+ * [Sequence], so an arbitrarily large playlist is never materialised in RAM (O(1)
+ * memory — a hard requirement on low-RAM TVs). The caller drives the sequence and
+ * writes channels to Room in batches.
  *
  * Expected shape:
  * ```
@@ -22,9 +22,9 @@ class M3uParser {
     private val attribute = Regex("""([A-Za-z0-9_-]+)="([^"]*)"""")
 
     /**
-     * Lazily parses [lines] into channels. Malformed entries (an `#EXTINF`
-     * without a following URL, or a URL without metadata) are skipped rather
-     * than aborting the whole import.
+     * Lazily parses [lines] into channels. Malformed entries (an `#EXTINF` without a
+     * following URL, or a URL without metadata) are skipped rather than aborting the
+     * whole import.
      */
     fun parse(lines: Sequence<String>): Sequence<Channel> =
         sequence {
@@ -51,10 +51,7 @@ class M3uParser {
         val attrs = attribute.findAll(line).associate { it.groupValues[1] to it.groupValues[2] }
         // Display name is the text after the last comma on the line.
         val displayName = line.substringAfterLast(',', missingDelimiterValue = "").trim()
-        return ExtInf(
-            attrs = attrs,
-            displayName = displayName,
-        )
+        return ExtInf(attrs = attrs, displayName = displayName)
     }
 
     private data class ExtInf(
@@ -73,6 +70,7 @@ class M3uParser {
                 logoUrl = attrs["tvg-logo"]?.takeIf { it.isNotBlank() },
                 group = attrs["group-title"]?.takeIf { it.isNotBlank() },
                 number = attrs["tvg-chno"]?.toIntOrNull(),
+                epgChannelId = attrs["tvg-id"]?.takeIf { it.isNotBlank() },
             )
         }
     }

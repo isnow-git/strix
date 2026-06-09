@@ -1,13 +1,13 @@
 package dev.strix.core.player.config
 
 /**
- * Adaptive-bitrate (ABR) parameters for `AdaptiveTrackSelection`, calibrated for
- * TV networks.
+ * Adaptive-bitrate (ABR) parameters for `AdaptiveTrackSelection`, calibrated for TV
+ * networks.
  *
- * - [bandwidthFraction] < 1 leaves headroom so we don't over-commit to a bitrate
- *   the link can't sustain (fewer rebuffers, less jank).
- * - Quality decreases are allowed sooner than increases (asymmetric) to react
- *   quickly when bandwidth drops.
+ * - [bandwidthFraction] < 1 leaves headroom so we don't over-commit to a bitrate the
+ *   link can't sustain (fewer rebuffers, less jank).
+ * - Quality decreases are allowed sooner than increases (asymmetric) to react quickly
+ *   when bandwidth drops.
  *
  * Invariants mirror Media3's `AdaptiveTrackSelection` requirements.
  */

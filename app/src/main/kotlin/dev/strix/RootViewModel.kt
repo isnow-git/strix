@@ -3,7 +3,7 @@ package dev.strix
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
-import dev.strix.core.common.onboarding.CredentialStore
+import dev.strix.core.domain.onboarding.CredentialStore
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -17,14 +17,14 @@ class RootViewModel
     constructor(
         private val credentialStore: CredentialStore,
     ) : ViewModel() {
-        private val _startRoute = MutableStateFlow<String?>(null)
+        private val mutableStartRoute = MutableStateFlow<String?>(null)
 
         /** Null until resolved, then [Routes.CHANNELS] or [Routes.ONBOARDING]. */
-        val startRoute: StateFlow<String?> = _startRoute.asStateFlow()
+        val startRoute: StateFlow<String?> = mutableStartRoute.asStateFlow()
 
         init {
             viewModelScope.launch {
-                _startRoute.value =
+                mutableStartRoute.value =
                     if (credentialStore.current() != null) Routes.CHANNELS else Routes.ONBOARDING
             }
         }

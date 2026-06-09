@@ -5,9 +5,8 @@ import java.net.InetAddress
 import java.net.NetworkInterface
 
 /**
- * Finds the TV's site-local IPv4 address so the phone can reach the embedded
- * onboarding server over the LAN. Enumerating [NetworkInterface] covers both
- * Ethernet and Wi-Fi (ADR-0005).
+ * Finds the TV's site-local IPv4 address so the phone can reach the embedded onboarding
+ * server over the LAN. Enumerating [NetworkInterface] covers both Ethernet and Wi-Fi.
  */
 object LocalAddressFinder {
     /**

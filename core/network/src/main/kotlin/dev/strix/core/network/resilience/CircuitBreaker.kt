@@ -2,9 +2,9 @@ package dev.strix.core.network.resilience
 
 /**
  * A minimal circuit breaker for dead/flapping streams. After [failureThreshold]
- * consecutive failures the circuit OPENs and rejects attempts for
- * [openDurationMs]; it then allows a single HALF_OPEN probe — success closes it,
- * another failure re-opens it.
+ * consecutive failures the circuit OPENs and rejects attempts for [openDurationMs];
+ * it then allows a single HALF_OPEN probe — success closes it, another failure
+ * re-opens it.
  *
  * Keeps the player from hammering a dead channel (battery, network, jank on TV).
  * [now] is injectable for deterministic tests.

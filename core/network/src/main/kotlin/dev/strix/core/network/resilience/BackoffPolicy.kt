@@ -6,11 +6,11 @@ import kotlin.random.Random
 
 /**
  * Exponential backoff with "equal jitter" for retrying flaky stream/playlist
- * requests. Jitter spreads concurrent retries so a flapping provider isn't hit
- * by a synchronised thundering herd.
+ * requests. Jitter spreads concurrent retries so a flapping provider isn't hit by a
+ * synchronised thundering herd.
  *
- * For attempt `n` the base delay is `baseDelayMs * factor^n`, capped at
- * [maxDelayMs]; the returned value is `cap/2 + random(0, cap/2)`.
+ * For attempt `n` the base delay is `baseDelayMs * factor^n`, capped at [maxDelayMs];
+ * the returned value is `cap/2 + random(0, cap/2)`.
  */
 data class BackoffPolicy(
     val baseDelayMs: Long = 500,
