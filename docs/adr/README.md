@@ -9,7 +9,7 @@ editing it.
 | --- | ----- | ------ |
 | [0001](0001-kotlin-only.md) | Kotlin only, no native code | accepted |
 | [0002](0002-clean-architecture-and-mvi.md) | Clean Architecture + MVI | accepted |
-| [0003](0003-multi-module-structure.md) | Multi-module Gradle structure | accepted |
+| [0003](0003-multi-module-structure.md) | Multi-module Gradle structure | superseded by 0012 |
 | [0004](0004-media3-over-custom-player.md) | Media3/ExoPlayer over a custom player | accepted |
 | [0005](0005-local-server-onboarding.md) | Local-server (no-cloud) QR onboarding | accepted |
 | [0006](0006-onboarding-frontend.md) | Single self-contained HTML onboarding page | accepted |
@@ -18,5 +18,6 @@ editing it.
 | [0009](0009-dependency-injection.md) | Hilt for dependency injection | accepted |
 | [0010](0010-build-logic-convention-plugins.md) | build-logic convention plugins | accepted |
 | [0011](0011-core-data-module.md) | A dedicated :core:data module | accepted |
+| [0012](0012-module-structure-refinement.md) | Module structure refinement | accepted |
 
 To add one, copy [`template.md`](template.md).

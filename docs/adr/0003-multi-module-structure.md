@@ -1,7 +1,13 @@
 # 0003. Multi-module Gradle structure
 
-- Status: accepted
+- Status: superseded by [ADR-0012](0012-module-structure-refinement.md)
 - Date: 2026-05-31
+
+> **Superseded.** The `:core:* / :feature:*` split and its dependency rules
+> still hold; the concrete module list below was refined during implementation
+> (`:core:common` split into `:core:model` / `:core:domain` / `:core:data`,
+> `:core:ui` renamed to `:core:designsystem`, `:feature:player` merged into
+> `:feature:channels`). See [ADR-0012](0012-module-structure-refinement.md).
 
 ## Context and problem statement
 
